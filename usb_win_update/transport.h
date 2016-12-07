@@ -54,7 +54,7 @@ public:
 
 	// Reads or Writes |len| bytes from/to data. Returns the number of bytes actually
 	// read or written or -1 on error
-	virtual ssize_t ControlIO(unsigned char header[8], void* data, size_t len) = 0;
+	virtual ssize_t ControlIO(bool is_in, void *setup, void* data, size_t len) = 0;
 
 	// Closes the underlying transport. Returns 0 on success.
 	virtual int Close() = 0;

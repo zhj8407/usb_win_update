@@ -99,6 +99,37 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 char *buf;
 int buf_size = 1024 * 1024;
 
+struct setup_packet {
+	unsigned char bRequestType;
+	unsigned char bRequest;
+	unsigned short wValue;
+	unsigned short wIndex;
+	unsigned short wLength;
+};
+
+#define PLCM_USB_REQUEST_SET_INFORMATION	0x01
+#define PLCM_USB_REQUEST_GET_INFORMATION	0x81
+
+#define PLCM_USB_REQUEST_VALUE_IMG_LENGTH		0x0001
+#define PLCM_USB_REQUEST_VALUE_IMG_NAME			0x0002
+#define PLCM_USB_REQUEST_VALUE_IMG_MD5_SUM		0x0003
+#define PLCM_USB_REQUEST_VALUE_STATUS			0x0004
+#define PLCM_USB_REQUEST_VALUE_WRITTEN_BYTES	0x0005
+
+int polySendControlInfo(Transport *transport, bool is_in_direction,
+	unsigned char request, unsigned short value, void *data, unsigned int len)
+{
+	struct setup_packet setup;
+	
+	memset(&setup, 0x00, sizeof(struct setup_packet));
+
+	setup.bRequest = request;
+	setup.wValue = value;
+	setup.wLength = len;
+
+	return transport->ControlIO(is_in_direction, &setup, data, len);
+}
+
 int polySendImageFile(Transport *transport, const char *fileName, const char *destFileName)
 {
 	FILE *fp;
@@ -132,18 +163,38 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
-	//Send the image filepath and filesize
-	char msg[512];
+	//Send the image filesize
+	char msg[64];
 
-	int msg_count = snprintf(msg, sizeof(msg), "Image Transfer: %lld-%s", ops, destFileName);
+	unsigned int size = (unsigned int)ops;
+	memcpy(msg, &size, sizeof(size));
 
-	msg[msg_count + 1] = 0;
-
-	printf("Message: %s(%d)\n", msg, strnlen(msg, sizeof(msg)));
-
-	write_len = transport->Write(msg, msg_count);
+	write_len = polySendControlInfo(transport,
+		false,
+		PLCM_USB_REQUEST_SET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_IMG_LENGTH,
+		msg,
+		sizeof(size));
 
 	if (write_len < 0) {
+		fprintf(stderr, "Failed to issue the control transer\n");
+		fclose(fp);
+		return -1;
+	}
+
+	//Send the image name
+	int msg_count = snprintf(msg, sizeof(msg), "%s", destFileName);
+	msg[msg_count + 1] = '\0';
+
+	write_len = polySendControlInfo(transport,
+		false,
+		PLCM_USB_REQUEST_SET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_IMG_NAME,
+		msg,
+		msg_count + 1);
+
+	if (write_len < 0) {
+		fprintf(stderr, "Failed to issue the control transer, msg: %s\n", msg);
 		fclose(fp);
 		return -1;
 	}
@@ -168,6 +219,31 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	fclose(fp);
 
+	int retries = 0;
+
+	int written_bytes = 0;
+
+	do {
+		Sleep(10);
+
+		ret = polySendControlInfo(transport,
+			true,
+			PLCM_USB_REQUEST_GET_INFORMATION,
+			PLCM_USB_REQUEST_VALUE_WRITTEN_BYTES,
+			&written_bytes,
+			4);
+
+		if (ret < 0) {
+			return -1;
+		}
+
+	} while (written_bytes < total_len && (retries++) < 10);
+
+	if (written_bytes != total_len && retries >= 10) {
+		fprintf(stderr, "Failed to transfer all the data in %d times retries\n", 10);
+		return -1;
+	}
+
 	char md5_sum[40];
 
 	ret = polyGenerateMD5Sum(fileName, md5_sum);
@@ -177,15 +253,15 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	}
 
 	//Send the MD5 sum for verification
-	msg_count = snprintf(msg, sizeof(msg), "Image Transfer Done. MD5Sum: %s", md5_sum);
-
-	msg[msg_count + 1] = '\0';
-
-	printf("Message: %s(%d)\n", msg, strnlen(msg, sizeof(msg)));
-
-	write_len = transport->Write(msg, msg_count);
+	write_len = polySendControlInfo(transport,
+		false,
+		PLCM_USB_REQUEST_SET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_IMG_MD5_SUM,
+		md5_sum,
+		strnlen(md5_sum, sizeof(md5_sum)) + 1);
 
 	if (write_len < 0) {
+		fprintf(stderr, "Failed to issue the md5sum control msg: %s\n", md5_sum);
 		return -1;
 	}
 

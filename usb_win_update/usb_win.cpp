@@ -70,7 +70,7 @@ public:
 
 	ssize_t Read(void* data, size_t len) override;
 	ssize_t Write(const void* data, size_t len) override;
-	ssize_t ControlIO(unsigned char header[8], void* data, size_t len) override;
+	ssize_t ControlIO(bool is_in, void *setup, void* data, size_t len) override;
 	int Close() override;
 
 private:
@@ -202,8 +202,8 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 	return -1;
 }
 
-ssize_t WindowsUsbTransport::ControlIO(unsigned char header[8],
-	void* data, size_t len) {
+ssize_t WindowsUsbTransport::ControlIO(bool is_in,
+	void *setup, void* data, size_t len) {
 	unsigned long transferred = 0;
 	int ret;
 
@@ -212,7 +212,8 @@ ssize_t WindowsUsbTransport::ControlIO(unsigned char header[8],
 	if (nullptr != handle_) {
 		//Perform the control transfer
 		if (!AdbDefaultEndpointReadWriteSync(handle_->adb_interface,
-			header,
+			is_in,
+			setup,
 			data,
 			len,
 			&transferred)) {
