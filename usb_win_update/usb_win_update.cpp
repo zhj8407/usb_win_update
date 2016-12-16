@@ -17,6 +17,8 @@
 
 typedef int(*usb_file_transfer_func)(Transport *, const char *, const char *);
 
+#define DEVICE_IMAGE_STORE_DIRECTORY	"/data"
+
 int on_adb_device_found(usb_ifc_info *info)
 {
 	printf("We found an adb device\n");
@@ -29,7 +31,8 @@ int on_adb_device_found(usb_ifc_info *info)
 
 int traverse_directory(const char *dirName,
 	usb_file_transfer_func callback,
-	Transport *transport)
+	Transport *transport,
+	int *totalCount)
 {
 	struct _finddata_t file_find;
 	int handle;
@@ -50,10 +53,11 @@ int traverse_directory(const char *dirName,
 			snprintf(pattern, sizeof(pattern), "%s\\%s", dirName, file_find.name);
 			if (file_find.attrib == _A_SUBDIR) {
 				printf("[Dir]:\t%s\\%s\n", dirName, file_find.name);
-				count += traverse_directory(pattern, callback, transport);
+				count += traverse_directory(pattern, callback, transport, totalCount);
 			}
 			else {
 				printf("[File]:\t%s\\%s\n", dirName, file_find.name);
+				(*totalCount)++;
 				if (!callback(transport, pattern, file_find.name))
 					count++;
 			}
@@ -97,7 +101,7 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 }
 
 char *buf;
-int buf_size = 1024 * 1024;
+int buf_size = 16 * 1024;
 
 struct setup_packet {
 	unsigned char bRequestType;
@@ -216,7 +220,6 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	}
 
 	printf("total_len is %d\n", total_len);
-
 	fclose(fp);
 
 	int retries = 0;
@@ -224,7 +227,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	int written_bytes = 0;
 
 	do {
-		Sleep(10);
+		Sleep(100);
 
 		ret = polySendControlInfo(transport,
 			true,
@@ -236,6 +239,8 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		if (ret < 0) {
 			return -1;
 		}
+
+		printf("Got written_bytes: %d\n", written_bytes);
 
 	} while (written_bytes < total_len && (retries++) < 10);
 
@@ -265,10 +270,29 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
+	int status;
+
+	ret = polySendControlInfo(transport,
+		true,
+		PLCM_USB_REQUEST_GET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_STATUS,
+		&status,
+		4);
+
+	if (ret < 0) {
+		fprintf(stderr, "Failed to read out the status\n");
+		return -1;
+	}
+
+	if (status != 0) {
+		fprintf(stderr, "MD5 checking failed. status: %d\n", status);
+		return -1;
+	}
+
 	return 0;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	printf("zhangjie\n");
 
@@ -290,9 +314,110 @@ int main()
 	//printf("MD5 Sum is : %s\n", buf);
 #endif
 
-	int file_count = traverse_directory("c:\\dev", polySendImageFile, transport);
+#if 1
+	char *base_dir = "c:\\aaa2";
 
-	printf("total file count is %d\n", file_count);
+	if (argc < 2) {
+		fprintf(stderr, "Invaild argument!\n");
+		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY]\n");
+		fprintf(stderr, "Use the default directory: %s\n", base_dir);
+	}
+	else {
+		base_dir = argv[1];
+	}
+
+	int total_file_count = 0;
+
+	int file_count = traverse_directory(base_dir, polySendImageFile, transport, &total_file_count);
+
+	printf("total file count: %d, transferred count: %d\n", total_file_count, file_count);
+#else
+
+	//int count = snprintf(buf, 1024, "%s", "zhangjie");
+	//buf[count + 1] = '\0';
+	memset(buf, 0xFF, buf_size);
+
+	int count = 1023;
+	if (argc >= 2)
+		count = atoi(argv[1]);
+
+	printf("We are going to transfer %d bytes\n", count);
+
+	transport->Write(buf, count);
+
+	//transport->Write(buf, 0);
+#endif
+
+#if 0
+	int number_bytes = 1023;
+	int ret = 0;
+
+	if (argc >= 2)
+		number_bytes = atoi(argv[1]);
+
+	printf("We are going to send %d bytes\n", number_bytes);
+
+	ret = polySendControlInfo(transport,
+		false,
+		PLCM_USB_REQUEST_SET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_IMG_LENGTH,
+		&number_bytes,
+		sizeof(number_bytes));
+
+	if (ret < 0)
+		return -1;
+
+	char file_name[64];
+
+	strncpy_s(file_name, "testfile", sizeof(file_name));
+
+	ret = polySendControlInfo(transport,
+		false,
+		PLCM_USB_REQUEST_SET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_IMG_NAME,
+		file_name,
+		strnlen(file_name, sizeof(file_name)) + 1);
+
+	if (ret < 0)
+		return -1;
+
+	transport->Write(buf, number_bytes);
+
+	for (int i = 0; i < 4; i++) {
+		Sleep(1000);
+		unsigned long written_bytes = 0;
+
+		ret = polySendControlInfo(transport,
+			true,
+			PLCM_USB_REQUEST_GET_INFORMATION,
+			PLCM_USB_REQUEST_VALUE_WRITTEN_BYTES,
+			&written_bytes,
+			4);
+
+		if (ret < 0) {
+			return -1;
+		}
+
+		printf("Got written_bytes: %d\n", written_bytes);
+	}
+
+	char md5_sum[40];
+
+	memset(md5_sum, 0x33, sizeof(md5_sum));
+
+	md5_sum[32] = '\0';
+
+	ret = polySendControlInfo(transport,
+		false,
+		PLCM_USB_REQUEST_SET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_IMG_MD5_SUM,
+		md5_sum,
+		strnlen(md5_sum, sizeof(md5_sum)) + 1);
+
+	if (ret < 0)
+		return -1;
+
+#endif
 
 	free(buf);
 

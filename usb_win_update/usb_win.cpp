@@ -77,8 +77,12 @@ private:
 	std::unique_ptr<usb_handle> handle_;
 };
 
+#if 0
 /// Class ID assigned to the device by androidusb.sys
 static const GUID usb_class_id = ANDROID_USB_CLASS_ID;
+#else
+static const GUID usb_class_id = PLCM_VSC_USB_CLASS_ID;
+#endif
 
 /// Checks if interface (device) matches certain criteria
 int recognized_device(usb_handle* handle, ifc_match_func callback);
@@ -156,6 +160,23 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 	//fprintf(stderr, "usb_write %d\n", len);
 	if (nullptr != handle_) {
 		// Perform write
+#if 1
+		if (len == 0) {
+			fprintf(stderr, "usb_write: write the short packet. ZLP\n");
+			ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
+				&written_zlp, time_out);
+			if (ret == 0) {
+				errno = GetLastError();
+				fprintf(stderr, "AdbWriteEndpointSync ZLP returned %d, errno: %d\n", ret, errno);
+				// assume ERROR_INVALID_HANDLE indicates we are disconnected
+				if (errno == ERROR_INVALID_HANDLE)
+					usb_kick(handle_.get());
+				return -1;
+			}
+			return 0;
+		}
+#endif
+
 		while (len > 0) {
 			int xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
 			ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), xfer,
@@ -170,8 +191,10 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 				return -1;
 			}
 
+#if 1
 			if (handle_->zero_mask && ((xfer & handle_->zero_mask) == 0)) {
 				//Send the ZLP
+				//fprintf(stdout, "Send the ZLP\n");
 				ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
 					&written_zlp, time_out);
 				if (ret == 0) {
@@ -183,6 +206,7 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 					return -1;
 				}
 			}
+#endif
 
 			count += written;
 			len -= written;
@@ -205,9 +229,10 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 ssize_t WindowsUsbTransport::ControlIO(bool is_in,
 	void *setup, void* data, size_t len) {
 	unsigned long transferred = 0;
-	int ret;
 
+#if 0
 	fprintf(stderr, "usb_control_transfer %d\n", len);
+#endif
 
 	if (nullptr != handle_) {
 		//Perform the control transfer
@@ -225,6 +250,12 @@ ssize_t WindowsUsbTransport::ControlIO(bool is_in,
 			return transferred;
 		}
 	}
+	else {
+		fprintf(stderr, "ControlIO NULL handle\n");
+		SetLastError(ERROR_INVALID_HANDLE);
+	}
+
+	return -1;
 }
 
 ssize_t WindowsUsbTransport::Read(void* data, size_t len) {
