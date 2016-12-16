@@ -294,25 +294,12 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 int main(int argc, char *argv[])
 {
-	printf("zhangjie\n");
-
 	buf = (char *)malloc(buf_size);
 
 	if (buf == NULL)
 		return -1;
 
 	Transport *transport = usb_open(on_adb_device_found);
-
-#if 0
-	//transport->Write(hello, strlen(hello));
-	transport->Write(buf, 1024);
-#else
-	//polySendImageFile(transport, "d:\\polycom-cx5100cx5500-dev-1.3.0-0.zip", "/root/b.zip");
-	//polySendImageFile(transport, "d:\\polycom-cx5100cx5500-dev-1.3.0-0.tar", "/root/aaab.tar");
-	//polySendImageFile(transport, "d:\\md5sum.txt", "/root/md5sum.txt");
-	//polyGenerateMD5Sum("d:\\polycom-cx5100cx5500-dev-1.3.0-0.tar", buf);
-	//printf("MD5 Sum is : %s\n", buf);
-#endif
 
 #if 1
 	char *base_dir = "c:\\aaa2";
@@ -346,77 +333,6 @@ int main(int argc, char *argv[])
 	transport->Write(buf, count);
 
 	//transport->Write(buf, 0);
-#endif
-
-#if 0
-	int number_bytes = 1023;
-	int ret = 0;
-
-	if (argc >= 2)
-		number_bytes = atoi(argv[1]);
-
-	printf("We are going to send %d bytes\n", number_bytes);
-
-	ret = polySendControlInfo(transport,
-		false,
-		PLCM_USB_REQUEST_SET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_IMG_LENGTH,
-		&number_bytes,
-		sizeof(number_bytes));
-
-	if (ret < 0)
-		return -1;
-
-	char file_name[64];
-
-	strncpy_s(file_name, "testfile", sizeof(file_name));
-
-	ret = polySendControlInfo(transport,
-		false,
-		PLCM_USB_REQUEST_SET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_IMG_NAME,
-		file_name,
-		strnlen(file_name, sizeof(file_name)) + 1);
-
-	if (ret < 0)
-		return -1;
-
-	transport->Write(buf, number_bytes);
-
-	for (int i = 0; i < 4; i++) {
-		Sleep(1000);
-		unsigned long written_bytes = 0;
-
-		ret = polySendControlInfo(transport,
-			true,
-			PLCM_USB_REQUEST_GET_INFORMATION,
-			PLCM_USB_REQUEST_VALUE_WRITTEN_BYTES,
-			&written_bytes,
-			4);
-
-		if (ret < 0) {
-			return -1;
-		}
-
-		printf("Got written_bytes: %d\n", written_bytes);
-	}
-
-	char md5_sum[40];
-
-	memset(md5_sum, 0x33, sizeof(md5_sum));
-
-	md5_sum[32] = '\0';
-
-	ret = polySendControlInfo(transport,
-		false,
-		PLCM_USB_REQUEST_SET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_IMG_MD5_SUM,
-		md5_sum,
-		strnlen(md5_sum, sizeof(md5_sum)) + 1);
-
-	if (ret < 0)
-		return -1;
-
 #endif
 
 	free(buf);
