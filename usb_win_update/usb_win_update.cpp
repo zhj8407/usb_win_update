@@ -112,11 +112,56 @@ struct setup_packet {
 #define PLCM_USB_REQUEST_SET_INFORMATION	0x01
 #define PLCM_USB_REQUEST_GET_INFORMATION	0x81
 
-#define PLCM_USB_REQUEST_VALUE_IMG_LENGTH		0x0001
-#define PLCM_USB_REQUEST_VALUE_IMG_NAME			0x0002
-#define PLCM_USB_REQUEST_VALUE_IMG_MD5_SUM		0x0003
-#define PLCM_USB_REQUEST_VALUE_STATUS			0x0004
-#define PLCM_USB_REQUEST_VALUE_WRITTEN_BYTES	0x0005
+/* WUP specific requests. */
+#define PLCM_USB_REQ_WUP_SET_DNLOAD_INFO     0x0001
+#define PLCM_USB_REQ_WUP_GETSTATUS           0x0002
+#define PLCM_USB_REQ_WUP_CLRSTATUS           0x0003
+#define PLCM_USB_REQ_WUP_GETSTATE            0x0005
+#define PLCM_USB_REQ_WUP_ABORT               0x0006
+#define PLCM_USB_REQ_WUP_SYNC                0x0007
+#define PLCM_USB_REQ_WUP_INT_CHECK           0x0008
+
+
+struct wup_status {
+	unsigned char bStatus;
+	unsigned char bState;
+	union {
+		unsigned int dwWrittenBytes;
+		unsigned char bReserved[6];
+	} u;
+};
+
+struct wup_dnload_info {
+	char sSwVersion[32];
+	unsigned int dwImageSize;
+	unsigned int dwSyncBlockSize;
+	unsigned char bForced;
+	unsigned char bReserved[23];
+};
+
+#define WUP_STATUS_OK                   0x00
+#define WUP_STATUS_errSTATE             0x01
+#define WUP_STATUS_errCHECK             0x02
+#define WUP_STATUS_errTARGET            0x03
+#define WUP_STATUS_errFILE              0x04
+#define WUP_STATUS_errWRITE             0x05
+#define WUP_STATUS_errVERIFY            0x06
+#define WUP_STATUS_errNOTDONE           0x07
+#define WUP_STATUS_errINVAL             0x08
+#define WUP_STATUS_errTRANS             0x09
+#define WUP_STATUS_errUNKNOWN           0x0A
+
+enum wup_state {
+	WUP_STATE_dfuDETACHED = 0,
+	WUP_STATE_dfuIDLE = 1,
+	WUP_STATE_dfuDNLOAD_IDLE = 2,
+	WUP_STATE_dfuDNLOAD_BUSY = 3,
+	WUP_STATE_dfuDNLOAD_SYNC = 4,
+	WUP_STATE_dfuDNLOAD_VERY = 5,
+	WUP_STATE_dfuUPDATE_BUSY = 6,
+	WUP_STATE_dfuERROR = 7,
+};
+
 
 int polySendControlInfo(Transport *transport, bool is_in_direction,
 	unsigned char request, unsigned short value, void *data, unsigned int len)
@@ -141,7 +186,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	int ret;
 
-	int status;
+	struct wup_status wup_status;
 
 	if (transport == NULL)
 		return -EINVAL;
@@ -167,18 +212,20 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
-	//Send the image filesize
-	char msg[64];
+	//Send the download information
+	struct wup_dnload_info dnload_info;
 
-	unsigned int size = (unsigned int)ops;
-	memcpy(msg, &size, sizeof(size));
+	strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
+	dnload_info.dwImageSize = (unsigned int)ops;
+	dnload_info.dwSyncBlockSize = 0;    /* Do not sync in the transfer. */
+	dnload_info.bForced = 0;
 
 	write_len = polySendControlInfo(transport,
 		false,
 		PLCM_USB_REQUEST_SET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_IMG_LENGTH,
-		msg,
-		sizeof(size));
+		PLCM_USB_REQ_WUP_SET_DNLOAD_INFO,
+		&dnload_info,
+		sizeof(struct wup_dnload_info));
 
 	if (write_len < 0) {
 		fprintf(stderr, "Failed to set the image size\n");
@@ -186,12 +233,15 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
+	// Check the status
+	memset(&wup_status, 0x00, sizeof(struct wup_status));
+
 	read_len = polySendControlInfo(transport,
 		true,
 		PLCM_USB_REQUEST_GET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_STATUS,
-		&status,
-		sizeof(status));
+		PLCM_USB_REQ_WUP_GETSTATUS,
+		&wup_status,
+		sizeof(struct wup_status));
 
 	if (read_len < 0) {
 		fprintf(stderr, "Failed to read the status\n");
@@ -199,46 +249,11 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
-	if (status != 0) {
-		fprintf(stderr, "Status error in set the image size: %d\n",
-			status);
-		fclose(fp);
-		return -1;
-	}
-
-	//Send the image name
-	int msg_count = snprintf(msg, sizeof(msg), "%s", destFileName);
-	msg[msg_count + 1] = '\0';
-
-	write_len = polySendControlInfo(transport,
-		false,
-		PLCM_USB_REQUEST_SET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_IMG_NAME,
-		msg,
-		msg_count + 1);
-
-	if (write_len < 0) {
-		fprintf(stderr, "Failed to issue the control transer, msg: %s\n", msg);
-		fclose(fp);
-		return -1;
-	}
-
-	read_len = polySendControlInfo(transport,
-		true,
-		PLCM_USB_REQUEST_GET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_STATUS,
-		&status,
-		sizeof(status));
-
-	if (read_len < 0) {
-		fprintf(stderr, "Failed to read the status\n");
-		fclose(fp);
-		return -1;
-	}
-
-	if (status != 0) {
-		fprintf(stderr, "Status error in set the image file: %d\n",
-			status);
+	if (wup_status.bStatus != WUP_STATUS_OK &&
+		wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
+		fprintf(stderr, "Wrong status(%d) or state(%d)\n",
+			wup_status.bStatus,
+			wup_status.bState);
 		fclose(fp);
 		return -1;
 	}
@@ -246,6 +261,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	//Set the pos to start
 	fseek(fp, 0, SEEK_SET);
 
+	//Start the data transfer
 	int total_len = 0;
 
 	while ((read_len = fread(buf, sizeof(char), buf_size, fp)) > 0) {
@@ -264,30 +280,39 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	int retries = 0;
 
-	int written_bytes = 0;
-
 	do {
 		Sleep(100);
+
+		//Try to do sync
+		memset(&wup_status, 0x00, sizeof(struct wup_status));
 
 		ret = polySendControlInfo(transport,
 			true,
 			PLCM_USB_REQUEST_GET_INFORMATION,
-			PLCM_USB_REQUEST_VALUE_WRITTEN_BYTES,
-			&written_bytes,
-			4);
+			PLCM_USB_REQ_WUP_SYNC,
+			&wup_status,
+			sizeof(wup_status));
 
 		if (ret < 0) {
 			return -1;
 		}
 
-		printf("Got written_bytes: %d\n", written_bytes);
+		printf("Got state: %d\n", wup_status.bState);
 
-	} while (written_bytes < total_len && (retries++) < 10);
+	} while (wup_status.bState != WUP_STATE_dfuDNLOAD_SYNC && (retries++) < 10);
 
-	if (written_bytes != total_len && retries >= 10) {
+	if (wup_status.bState != WUP_STATE_dfuDNLOAD_SYNC || retries >= 10) {
 		fprintf(stderr, "Failed to transfer all the data in %d times retries\n", 10);
 		return -1;
 	}
+
+	if (wup_status.bStatus != WUP_STATUS_OK) {
+		fprintf(stderr, "Something wrong in the transferring, error is (%d)\n",
+			wup_status.bStatus);
+		return -1;
+	}
+
+	//Try to do integration check.
 
 	char md5_sum[40];
 
@@ -301,7 +326,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	write_len = polySendControlInfo(transport,
 		false,
 		PLCM_USB_REQUEST_SET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_IMG_MD5_SUM,
+		PLCM_USB_REQ_WUP_INT_CHECK,
 		md5_sum,
 		strnlen(md5_sum, sizeof(md5_sum)) + 1);
 
@@ -310,20 +335,27 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
-	ret = polySendControlInfo(transport,
+	// Check the status
+	memset(&wup_status, 0x00, sizeof(struct wup_status));
+
+	read_len = polySendControlInfo(transport,
 		true,
 		PLCM_USB_REQUEST_GET_INFORMATION,
-		PLCM_USB_REQUEST_VALUE_STATUS,
-		&status,
-		sizeof(status));
+		PLCM_USB_REQ_WUP_GETSTATUS,
+		&wup_status,
+		sizeof(struct wup_status));
 
-	if (ret < 0) {
-		fprintf(stderr, "Failed to read out the status\n");
+	if (read_len < 0) {
+		fprintf(stderr, "Failed to read the status\n");
+		fclose(fp);
 		return -1;
 	}
 
-	if (status != 0) {
-		fprintf(stderr, "MD5 checking failed. status: %d\n", status);
+	if (wup_status.bStatus != WUP_STATUS_OK &&
+		wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
+		fprintf(stderr, "Integration Checking Failed. status(%d) state(%d)\n",
+			wup_status.bStatus,
+			wup_status.bState);
 		return -1;
 	}
 
