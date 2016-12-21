@@ -17,8 +17,6 @@
 
 typedef int(*usb_file_transfer_func)(Transport *, const char *, const char *);
 
-#define DEVICE_IMAGE_STORE_DIRECTORY	"/data"
-
 int on_adb_device_found(usb_ifc_info *info)
 {
 	printf("We found an adb device\n");
@@ -101,7 +99,7 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 }
 
 char *buf;
-int buf_size = 16 * 1024;
+int buf_size = 1024 * 1024;
 
 struct setup_packet {
 	unsigned char bRequestType;
@@ -143,6 +141,8 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	int ret;
 
+	int status;
+
 	if (transport == NULL)
 		return -EINVAL;
 
@@ -181,7 +181,27 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		sizeof(size));
 
 	if (write_len < 0) {
-		fprintf(stderr, "Failed to issue the control transer\n");
+		fprintf(stderr, "Failed to set the image size\n");
+		fclose(fp);
+		return -1;
+	}
+
+	read_len = polySendControlInfo(transport,
+		true,
+		PLCM_USB_REQUEST_GET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_STATUS,
+		&status,
+		sizeof(status));
+
+	if (read_len < 0) {
+		fprintf(stderr, "Failed to read the status\n");
+		fclose(fp);
+		return -1;
+	}
+
+	if (status != 0) {
+		fprintf(stderr, "Status error in set the image size: %d\n",
+			status);
 		fclose(fp);
 		return -1;
 	}
@@ -199,6 +219,26 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	if (write_len < 0) {
 		fprintf(stderr, "Failed to issue the control transer, msg: %s\n", msg);
+		fclose(fp);
+		return -1;
+	}
+
+	read_len = polySendControlInfo(transport,
+		true,
+		PLCM_USB_REQUEST_GET_INFORMATION,
+		PLCM_USB_REQUEST_VALUE_STATUS,
+		&status,
+		sizeof(status));
+
+	if (read_len < 0) {
+		fprintf(stderr, "Failed to read the status\n");
+		fclose(fp);
+		return -1;
+	}
+
+	if (status != 0) {
+		fprintf(stderr, "Status error in set the image file: %d\n",
+			status);
 		fclose(fp);
 		return -1;
 	}
@@ -270,14 +310,12 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
-	int status;
-
 	ret = polySendControlInfo(transport,
 		true,
 		PLCM_USB_REQUEST_GET_INFORMATION,
 		PLCM_USB_REQUEST_VALUE_STATUS,
 		&status,
-		4);
+		sizeof(status));
 
 	if (ret < 0) {
 		fprintf(stderr, "Failed to read out the status\n");
