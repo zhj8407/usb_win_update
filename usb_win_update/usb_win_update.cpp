@@ -33,7 +33,7 @@ int traverse_directory(const char *dirName,
 	int *totalCount)
 {
 	struct _finddata_t file_find;
-	int handle;
+	intptr_t handle;
 	int done = 0;
 	char pattern[512];
 	int count;
@@ -66,9 +66,9 @@ int traverse_directory(const char *dirName,
 	return count;
 }
 
-int polyGenerateMD5Sum(const char *fileName, char *md5sum)
+size_t polyGenerateMD5Sum(const char *fileName, char *md5sum)
 {
-	int retValue = 0;
+	size_t retValue = 0;
 	char cmd_buf[512];
 	char *tmp_results = "md5_result_tmp.txt";
 	FILE *md5_fp;
@@ -99,9 +99,9 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 }
 
 char *buf;
-int buf_size = 1024 * 1024;
+size_t buf_size = 1024 * 1024;
 
-static int fSync = 0;
+static UINT8 fSync = 0;
 
 struct setup_packet {
 	unsigned char bRequestType;
@@ -125,20 +125,20 @@ struct setup_packet {
 
 #pragma pack (1)
 struct wup_status {
-	unsigned char bStatus;
-	unsigned char bState;
+	UINT8 bStatus;
+	UINT8 bState;
 	union {
-		unsigned int dwWrittenBytes;
-		unsigned char bReserved[6];
+		UINT32 dwWrittenBytes;
+		UINT8 bReserved[6];
 	} u;
 };
 
 struct wup_dnload_info {
 	char sSwVersion[32];
-	unsigned int dwImageSize;
-	unsigned int dwSyncBlockSize;
-	unsigned char bForced;
-	unsigned char bReserved[23];
+	UINT32 dwImageSize;
+	UINT32 dwSyncBlockSize;
+	UINT8 bForced;
+	UINT8 bReserved[23];
 };
 #pragma pack ()
 
@@ -167,8 +167,8 @@ enum wup_state {
 
 #define WUP_SYNC_BLOCK_SIZE		(16 * 1024 * 1024)
 
-static int polySendControlInfo(Transport *transport, bool is_in_direction,
-	unsigned char request, unsigned short value, void *data, unsigned int len)
+static ssize_t polySendControlInfo(Transport *transport, bool is_in_direction,
+	unsigned char request, unsigned short value, void *data, size_t len)
 {
 	struct setup_packet setup;
 
@@ -176,7 +176,7 @@ static int polySendControlInfo(Transport *transport, bool is_in_direction,
 
 	setup.bRequest = request;
 	setup.wValue = value;
-	setup.wLength = len;
+	setup.wLength = (unsigned short)len;
 
 	return transport->ControlIO(is_in_direction, &setup, data, len);
 }
@@ -185,7 +185,7 @@ static int polySendControlInfo(Transport *transport, bool is_in_direction,
 static int polySyncData(Transport *transport, struct wup_status *wup_status)
 {
 	int retries = 0;
-	int ret = 0;
+	ssize_t ret = 0;
 
 	do {
 		Sleep(100);
@@ -202,7 +202,7 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 
 		if (ret < 0) {
 			fprintf(stderr, "Failed to get sync status. Retry!\n");
-			wup_status->bStatus == WUP_STATUS_errSTATE;
+			wup_status->bStatus = WUP_STATUS_errSTATE;
 		}
 		else {
 			printf("polySyncData - Got state: %d, status: %d\n",
@@ -226,10 +226,10 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 {
 	FILE *fp;
 
-	int read_len;
-	int written_len;
+	ssize_t read_len;
+	ssize_t written_len;
 
-	int ret;
+	ssize_t ret;
 
 	struct wup_status wup_status;
 
@@ -330,26 +330,12 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	fseek(fp, 0, SEEK_SET);
 
 	//Start the data transfer
-	int total_len = 0;
+	size_t total_len = 0;
 
-
-#if 0
-	while ((read_len = fread(buf, sizeof(char), buf_size, fp)) > 0) {
-		total_len += read_len;
-
-		written_len = transport->Write(buf, read_len);
-		if (written_len < read_len) {
-			fprintf(stderr, "Failed to write all the data. Written length : %d, all data : %d\n",
-				written_len, read_len);
-			break;
-		}
-	}
-#else
-
-	int sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
+	size_t sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
 
 	while (1) {
-		int try_read_len = sync_block_remain > buf_size ? buf_size : sync_block_remain;
+		size_t try_read_len = sync_block_remain > buf_size ? buf_size : sync_block_remain;
 
 		// Try to read file data.
 		read_len = fread(buf, sizeof(char), try_read_len, fp);
@@ -361,8 +347,8 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		// Send the data through USB
 		written_len = transport->Write(buf, read_len);
 		if (written_len < read_len) {
-			fprintf(stderr, "Failed to write all the data. Written length : %d, all data : %d\n",
-				written_len, read_len);
+			fprintf(stderr, "Failed to write all the data. Written length : %lld, all data : %lld\n",
+				(long long)written_len, (long long)read_len);
 			break;
 		}
 
@@ -380,7 +366,8 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 			if (wup_status.bStatus != WUP_STATUS_OK ||
 				wup_status.u.dwWrittenBytes != total_len) {
-				fprintf(stderr, "Something wrong in the transferring, error is (%d)\n",
+				fprintf(stderr, "Something wrong in the transferring, error is (%d)"
+					" BytesWritten: %u\n",
 					wup_status.bStatus, wup_status.u.dwWrittenBytes);
 				fclose(fp);
 				return -1;
@@ -390,9 +377,8 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
 		}
 	}
-#endif
 
-	printf("total_len is %d\n", total_len);
+	printf("total_len is %llu\n", (unsigned long long)total_len);
 	fclose(fp);
 
 	ret = polySyncData(transport, &wup_status);
@@ -469,7 +455,8 @@ int main(int argc, char *argv[])
 	Transport *transport = usb_open(on_adb_device_found);
 
 #if 1
-	char *base_dir = "c:\\aaa";
+	//char *base_dir = "c:\\aaa";
+	char *base_dir = "C:\\Users\\test\\Downloads\\data";
 
 	if (argc < 2) {
 		fprintf(stderr, "Invaild argument!\n");
