@@ -123,7 +123,7 @@ struct setup_packet {
 #define PLCM_USB_REQ_WUP_SYNC                0x0007
 #define PLCM_USB_REQ_WUP_INT_CHECK           0x0008
 
-
+#pragma pack (1)
 struct wup_status {
 	unsigned char bStatus;
 	unsigned char bState;
@@ -140,6 +140,7 @@ struct wup_dnload_info {
 	unsigned char bForced;
 	unsigned char bReserved[23];
 };
+#pragma pack ()
 
 #define WUP_STATUS_OK                   0x00
 #define WUP_STATUS_errSTATE             0x01
@@ -164,7 +165,7 @@ enum wup_state {
 	WUP_STATE_dfuERROR = 7,
 };
 
-#define WUP_SYNC_BLOCK_SIZE		(32 * 1024 * 1024)
+#define WUP_SYNC_BLOCK_SIZE		(16 * 1024 * 1024)
 
 static int polySendControlInfo(Transport *transport, bool is_in_direction,
 	unsigned char request, unsigned short value, void *data, unsigned int len)
@@ -200,15 +201,21 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 			sizeof(struct wup_status));
 
 		if (ret < 0) {
-			return -1;
+			fprintf(stderr, "Failed to get sync status. Retry!\n");
+			wup_status->bStatus == WUP_STATUS_errSTATE;
+		}
+		else {
+			printf("polySyncData - Got state: %d, status: %d\n",
+				wup_status->bState,
+				wup_status->bStatus);
 		}
 
-		printf("polySyncData - Got state: %d\n", wup_status->bState);
-
-	} while (wup_status->bState != WUP_STATE_dfuDNLOAD_SYNC && (retries++) < 10);
+	} while (wup_status->bStatus == WUP_STATUS_errSTATE && (retries++) < 10);
 
 	if (wup_status->bState != WUP_STATE_dfuDNLOAD_SYNC || retries >= 10) {
-		fprintf(stderr, "Failed to transfer all the data in %d times retries\n", 10);
+		fprintf(stderr, "Failed to transfer all the data in %d times retries."
+			"State: %d, Status: %d, WrittenBytes: %u\n",
+			10, wup_status->bState, wup_status->bStatus, wup_status->u.dwWrittenBytes);
 		return -1;
 	}
 
@@ -291,7 +298,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			return -1;
 		}
 
-		if (wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
+		if (wup_status.bStatus == WUP_STATUS_errSTATE) {
 			// We need to send abort request
 			written_len = polySendControlInfo(transport,
 				false,
@@ -307,7 +314,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			}
 		}
 
-	} while (wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE && (retries++) < 1);
+	} while (wup_status.bStatus == WUP_STATUS_errSTATE && (retries++) < 1);
 
 	if (wup_status.bStatus != WUP_STATUS_OK &&
 		wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
@@ -371,9 +378,10 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 				return -1;
 			}
 
-			if (wup_status.bStatus != WUP_STATUS_OK) {
+			if (wup_status.bStatus != WUP_STATUS_OK ||
+				wup_status.u.dwWrittenBytes != total_len) {
 				fprintf(stderr, "Something wrong in the transferring, error is (%d)\n",
-					wup_status.bStatus);
+					wup_status.bStatus, wup_status.u.dwWrittenBytes);
 				fclose(fp);
 				return -1;
 			}
@@ -390,13 +398,15 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	ret = polySyncData(transport, &wup_status);
 
 	if (ret < 0) {
-		fprintf(stderr, "Failed to transfer all the data in %d times retries\n", 10);
+		fprintf(stderr, "Failed to do sync\n");
 		return -1;
 	}
 
-	if (wup_status.bStatus != WUP_STATUS_OK) {
-		fprintf(stderr, "Something wrong in the transferring, error is (%d)\n",
-			wup_status.bStatus);
+	if (wup_status.bStatus != WUP_STATUS_OK ||
+		wup_status.u.dwWrittenBytes != total_len) {
+		fprintf(stderr, "Something wrong in the transferring, error is (%d)"
+			" writtenBytes: %d\n",
+			wup_status.bStatus, wup_status.u.dwWrittenBytes);
 		return -1;
 	}
 
@@ -439,8 +449,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
-	if (wup_status.bStatus != WUP_STATUS_OK &&
-		wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
+	if (wup_status.bStatus != WUP_STATUS_OK) {
 		fprintf(stderr, "Integration Checking Failed. status(%d) state(%d)\n",
 			wup_status.bStatus,
 			wup_status.bState);
@@ -460,7 +469,7 @@ int main(int argc, char *argv[])
 	Transport *transport = usb_open(on_adb_device_found);
 
 #if 1
-	char *base_dir = "c:\\aaa2";
+	char *base_dir = "c:\\aaa";
 
 	if (argc < 2) {
 		fprintf(stderr, "Invaild argument!\n");

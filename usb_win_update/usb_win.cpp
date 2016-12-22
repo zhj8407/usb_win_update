@@ -194,9 +194,10 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 #if 1
 			if (handle_->zero_mask && ((xfer & handle_->zero_mask) == 0)) {
 				//Send the ZLP
-				fprintf(stdout, "Send the ZLP\n");
+				//fprintf(stdout, "Send the ZLP\n");
 				ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
 					&written_zlp, time_out);
+#if 0
 				if (ret == 0) {
 					errno = GetLastError();
 					fprintf(stderr, "AdbWriteEndpointSync ZLP returned %d, errno: %d\n", ret, errno);
@@ -205,9 +206,11 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 						usb_kick(handle_.get());
 					return -1;
 				}
+#endif
 #if 1
 				ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
 					&written_zlp, time_out);
+#if 0
 				if (ret == 0) {
 					errno = GetLastError();
 					fprintf(stderr, "AdbWriteEndpointSync ZLP returned %d, errno: %d\n", ret, errno);
@@ -216,6 +219,7 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 						usb_kick(handle_.get());
 					return -1;
 				}
+#endif
 #endif
 			}
 #endif
