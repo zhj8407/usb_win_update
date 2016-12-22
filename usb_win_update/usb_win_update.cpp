@@ -188,6 +188,9 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	struct wup_status wup_status;
 
+	struct wup_dnload_info dnload_info;
+	int retries = 0;
+
 	if (transport == NULL)
 		return -EINVAL;
 
@@ -212,46 +215,66 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		return -1;
 	}
 
-	//Send the download information
-	struct wup_dnload_info dnload_info;
+	retries = 0;
 
-	strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
-	dnload_info.dwImageSize = (unsigned int)ops;
-	dnload_info.dwSyncBlockSize = 0;    /* Do not sync in the transfer. */
-	dnload_info.bForced = 0;
+	do {
+		//Send the download information
+		strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
+		dnload_info.dwImageSize = (unsigned int)ops;
+		dnload_info.dwSyncBlockSize = 0;    /* Do not sync in the transfer. */
+		dnload_info.bForced = 1;
 
-	write_len = polySendControlInfo(transport,
-		false,
-		PLCM_USB_REQUEST_SET_INFORMATION,
-		PLCM_USB_REQ_WUP_SET_DNLOAD_INFO,
-		&dnload_info,
-		sizeof(struct wup_dnload_info));
+		write_len = polySendControlInfo(transport,
+			false,
+			PLCM_USB_REQUEST_SET_INFORMATION,
+			PLCM_USB_REQ_WUP_SET_DNLOAD_INFO,
+			&dnload_info,
+			sizeof(struct wup_dnload_info));
 
-	if (write_len < 0) {
-		fprintf(stderr, "Failed to set the image size\n");
-		fclose(fp);
-		return -1;
-	}
+		if (write_len < 0) {
+			fprintf(stderr, "Failed to set the image size\n");
+			fclose(fp);
+			return -1;
+		}
 
-	// Check the status
-	memset(&wup_status, 0x00, sizeof(struct wup_status));
+		// Check the status
+		memset(&wup_status, 0x00, sizeof(struct wup_status));
 
-	read_len = polySendControlInfo(transport,
-		true,
-		PLCM_USB_REQUEST_GET_INFORMATION,
-		PLCM_USB_REQ_WUP_GETSTATUS,
-		&wup_status,
-		sizeof(struct wup_status));
+		read_len = polySendControlInfo(transport,
+			true,
+			PLCM_USB_REQUEST_GET_INFORMATION,
+			PLCM_USB_REQ_WUP_GETSTATUS,
+			&wup_status,
+			sizeof(struct wup_status));
 
-	if (read_len < 0) {
-		fprintf(stderr, "Failed to read the status\n");
-		fclose(fp);
-		return -1;
-	}
+		if (read_len < 0) {
+			fprintf(stderr, "Failed to read the status\n");
+			fclose(fp);
+			return -1;
+		}
+
+		if (wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
+			// We need to send abort request
+			write_len = polySendControlInfo(transport,
+				false,
+				PLCM_USB_REQUEST_SET_INFORMATION,
+				PLCM_USB_REQ_WUP_ABORT,
+				NULL,
+				0);
+
+			if (write_len < 0) {
+				fprintf(stderr, "Failed to set abort\n");
+				fclose(fp);
+				return -1;
+			}
+		}
+
+	} while (wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE && (retries++) < 1);
 
 	if (wup_status.bStatus != WUP_STATUS_OK &&
 		wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
-		fprintf(stderr, "Wrong status(%d) or state(%d)\n",
+		fprintf(stderr, "Failed to set the download info."
+			" Wrong status(%d) or state(%d)\n",
 			wup_status.bStatus,
 			wup_status.bState);
 		fclose(fp);
@@ -278,7 +301,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	printf("total_len is %d\n", total_len);
 	fclose(fp);
 
-	int retries = 0;
+	retries = 0;
 
 	do {
 		Sleep(100);

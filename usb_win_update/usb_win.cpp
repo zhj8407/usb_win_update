@@ -205,7 +205,7 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 						usb_kick(handle_.get());
 					return -1;
 				}
-#if 0
+#if 1
 				ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
 					&written_zlp, time_out);
 				if (ret == 0) {
