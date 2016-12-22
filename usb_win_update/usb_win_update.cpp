@@ -15,6 +15,8 @@
 
 #include "usb.h"
 
+#define DEBUG_PRINT 0
+
 typedef int(*usb_file_transfer_func)(Transport *, const char *, const char *);
 
 int on_adb_device_found(usb_ifc_info *info)
@@ -37,6 +39,7 @@ int traverse_directory(const char *dirName,
 	int done = 0;
 	char pattern[512];
 	int count;
+	int ret;
 
 	snprintf(pattern, sizeof(pattern), "%s\\*.*", dirName);
 
@@ -50,14 +53,23 @@ int traverse_directory(const char *dirName,
 
 			snprintf(pattern, sizeof(pattern), "%s\\%s", dirName, file_find.name);
 			if (file_find.attrib == _A_SUBDIR) {
+#if DEBUG_PRINT
 				printf("[Dir]:\t%s\\%s\n", dirName, file_find.name);
+#endif
 				count += traverse_directory(pattern, callback, transport, totalCount);
 			}
 			else {
+#if DEBUG_PRINT
 				printf("[File]:\t%s\\%s\n", dirName, file_find.name);
+#endif
 				(*totalCount)++;
-				if (!callback(transport, pattern, file_find.name))
+				if ((ret = callback(transport, pattern, file_find.name)) == 0) {
 					count++;
+				}
+				else {
+					fprintf(stderr, "Failed to transfer file: \t%s\\%s. ret is %d\n",
+						dirName, file_find.name, ret);
+				}
 			}
 		}
 		_findclose(handle);
@@ -101,7 +113,7 @@ size_t polyGenerateMD5Sum(const char *fileName, char *md5sum)
 char *buf;
 size_t buf_size = 1024 * 1024;
 
-static UINT8 fSync = 0;
+static UINT8 fSync = 1;
 
 struct setup_packet {
 	unsigned char bRequestType;
@@ -165,7 +177,7 @@ enum wup_state {
 	WUP_STATE_dfuERROR = 7,
 };
 
-#define WUP_SYNC_BLOCK_SIZE		(16 * 1024 * 1024)
+#define WUP_SYNC_BLOCK_SIZE		(64 * 1024 * 1024)
 
 static ssize_t polySendControlInfo(Transport *transport, bool is_in_direction,
 	unsigned char request, unsigned short value, void *data, size_t len)
@@ -188,7 +200,7 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 	ssize_t ret = 0;
 
 	do {
-		Sleep(100);
+		Sleep(1000);
 
 		//Try to do sync
 		memset(wup_status, 0x00, sizeof(struct wup_status));
@@ -201,18 +213,25 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 			sizeof(struct wup_status));
 
 		if (ret < 0) {
-			fprintf(stderr, "Failed to get sync status. Retry!\n");
-			wup_status->bStatus = WUP_STATUS_errSTATE;
+			if (GetLastError() == ERROR_SEM_TIMEOUT) {
+				fprintf(stderr, "Failed to get sync status. Retry!\n");
+				wup_status->bStatus = WUP_STATUS_errSTATE;
+			}
+			else {
+				break;
+			}
 		}
 		else {
+#if DEBUG_PRINT
 			printf("polySyncData - Got state: %d, status: %d\n",
 				wup_status->bState,
 				wup_status->bStatus);
+#endif
 		}
 
 	} while (wup_status->bStatus == WUP_STATUS_errSTATE && (retries++) < 10);
 
-	if (wup_status->bState != WUP_STATE_dfuDNLOAD_SYNC || retries >= 10) {
+	if (wup_status->bStatus != WUP_STATUS_OK || retries >= 10) {
 		fprintf(stderr, "Failed to transfer all the data in %d times retries."
 			"State: %d, Status: %d, WrittenBytes: %u\n",
 			10, wup_status->bState, wup_status->bStatus, wup_status->u.dwWrittenBytes);
@@ -252,7 +271,9 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	fgetpos(fp, &ops);
 
+#if DEBUG_PRINT
 	printf("File size is %lld\n", ops);
+#endif
 
 	//If the filesize is zero. Do not transfer it.
 	if (ops == 0) {
@@ -267,7 +288,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
 		dnload_info.dwImageSize = (unsigned int)ops;
 		dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */
-		dnload_info.bForced = 1;
+		dnload_info.bForced = 0;
 
 		written_len = polySendControlInfo(transport,
 			false,
@@ -277,9 +298,9 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			sizeof(struct wup_dnload_info));
 
 		if (written_len < 0) {
-			fprintf(stderr, "Failed to set the image size\n");
+			fprintf(stderr, "Failed to set the download info\n");
 			fclose(fp);
-			return -1;
+			return -2;
 		}
 
 		// Check the status
@@ -295,7 +316,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		if (read_len < 0) {
 			fprintf(stderr, "Failed to read the status\n");
 			fclose(fp);
-			return -1;
+			return -3;
 		}
 
 		if (wup_status.bStatus == WUP_STATUS_errSTATE) {
@@ -310,7 +331,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			if (written_len < 0) {
 				fprintf(stderr, "Failed to set abort\n");
 				fclose(fp);
-				return -1;
+				return -4;
 			}
 		}
 
@@ -323,7 +344,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			wup_status.bStatus,
 			wup_status.bState);
 		fclose(fp);
-		return -1;
+		return -5;
 	}
 
 	//Set the pos to start
@@ -361,7 +382,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			if (ret < 0) {
 				fprintf(stderr, "Failed to sync data in transfer\n");
 				fclose(fp);
-				return -1;
+				return -6;
 			}
 
 			if (wup_status.bStatus != WUP_STATUS_OK ||
@@ -370,7 +391,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 					" BytesWritten: %u\n",
 					wup_status.bStatus, wup_status.u.dwWrittenBytes);
 				fclose(fp);
-				return -1;
+				return -7;
 			}
 
 			//Reset the sync block remain
@@ -378,14 +399,16 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		}
 	}
 
+#if DEBUG_PRINT
 	printf("total_len is %llu\n", (unsigned long long)total_len);
+#endif
 	fclose(fp);
 
 	ret = polySyncData(transport, &wup_status);
 
 	if (ret < 0) {
 		fprintf(stderr, "Failed to do sync\n");
-		return -1;
+		return -8;
 	}
 
 	if (wup_status.bStatus != WUP_STATUS_OK ||
@@ -393,7 +416,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		fprintf(stderr, "Something wrong in the transferring, error is (%d)"
 			" writtenBytes: %d\n",
 			wup_status.bStatus, wup_status.u.dwWrittenBytes);
-		return -1;
+		return -9;
 	}
 
 	//Try to do integration check.
@@ -403,7 +426,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	ret = polyGenerateMD5Sum(fileName, md5_sum);
 	if (ret < 0) {
 		fprintf(stderr, "Failed to generate the MD5 Sum\n");
-		return -1;
+		return -10;
 	}
 
 	//Send the MD5 sum for verification
@@ -416,7 +439,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	if (written_len < 0) {
 		fprintf(stderr, "Failed to issue the md5sum control msg: %s\n", md5_sum);
-		return -1;
+		return -11;
 	}
 
 	// Check the status
@@ -432,14 +455,14 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	if (read_len < 0) {
 		fprintf(stderr, "Failed to read the status\n");
 		fclose(fp);
-		return -1;
+		return -12;
 	}
 
 	if (wup_status.bStatus != WUP_STATUS_OK) {
 		fprintf(stderr, "Integration Checking Failed. status(%d) state(%d)\n",
 			wup_status.bStatus,
 			wup_status.bState);
-		return -1;
+		return -13;
 	}
 
 	return 0;
