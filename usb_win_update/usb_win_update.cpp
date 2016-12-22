@@ -101,6 +101,8 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 char *buf;
 int buf_size = 1024 * 1024;
 
+static int fSync = 0;
+
 struct setup_packet {
 	unsigned char bRequestType;
 	unsigned char bRequest;
@@ -162,12 +164,13 @@ enum wup_state {
 	WUP_STATE_dfuERROR = 7,
 };
 
+#define WUP_SYNC_BLOCK_SIZE		(32 * 1024 * 1024)
 
-int polySendControlInfo(Transport *transport, bool is_in_direction,
+static int polySendControlInfo(Transport *transport, bool is_in_direction,
 	unsigned char request, unsigned short value, void *data, unsigned int len)
 {
 	struct setup_packet setup;
-	
+
 	memset(&setup, 0x00, sizeof(struct setup_packet));
 
 	setup.bRequest = request;
@@ -177,12 +180,47 @@ int polySendControlInfo(Transport *transport, bool is_in_direction,
 	return transport->ControlIO(is_in_direction, &setup, data, len);
 }
 
+
+static int polySyncData(Transport *transport, struct wup_status *wup_status)
+{
+	int retries = 0;
+	int ret = 0;
+
+	do {
+		Sleep(100);
+
+		//Try to do sync
+		memset(wup_status, 0x00, sizeof(struct wup_status));
+
+		ret = polySendControlInfo(transport,
+			true,
+			PLCM_USB_REQUEST_GET_INFORMATION,
+			PLCM_USB_REQ_WUP_SYNC,
+			wup_status,
+			sizeof(struct wup_status));
+
+		if (ret < 0) {
+			return -1;
+		}
+
+		printf("polySyncData - Got state: %d\n", wup_status->bState);
+
+	} while (wup_status->bState != WUP_STATE_dfuDNLOAD_SYNC && (retries++) < 10);
+
+	if (wup_status->bState != WUP_STATE_dfuDNLOAD_SYNC || retries >= 10) {
+		fprintf(stderr, "Failed to transfer all the data in %d times retries\n", 10);
+		return -1;
+	}
+
+	return 0;
+}
+
 int polySendImageFile(Transport *transport, const char *fileName, const char *destFileName)
 {
 	FILE *fp;
 
 	int read_len;
-	int write_len;
+	int written_len;
 
 	int ret;
 
@@ -221,17 +259,17 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		//Send the download information
 		strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
 		dnload_info.dwImageSize = (unsigned int)ops;
-		dnload_info.dwSyncBlockSize = 0;    /* Do not sync in the transfer. */
+		dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */
 		dnload_info.bForced = 1;
 
-		write_len = polySendControlInfo(transport,
+		written_len = polySendControlInfo(transport,
 			false,
 			PLCM_USB_REQUEST_SET_INFORMATION,
 			PLCM_USB_REQ_WUP_SET_DNLOAD_INFO,
 			&dnload_info,
 			sizeof(struct wup_dnload_info));
 
-		if (write_len < 0) {
+		if (written_len < 0) {
 			fprintf(stderr, "Failed to set the image size\n");
 			fclose(fp);
 			return -1;
@@ -255,14 +293,14 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 		if (wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
 			// We need to send abort request
-			write_len = polySendControlInfo(transport,
+			written_len = polySendControlInfo(transport,
 				false,
 				PLCM_USB_REQUEST_SET_INFORMATION,
 				PLCM_USB_REQ_WUP_ABORT,
 				NULL,
 				0);
 
-			if (write_len < 0) {
+			if (written_len < 0) {
 				fprintf(stderr, "Failed to set abort\n");
 				fclose(fp);
 				return -1;
@@ -287,44 +325,71 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	//Start the data transfer
 	int total_len = 0;
 
+
+#if 0
 	while ((read_len = fread(buf, sizeof(char), buf_size, fp)) > 0) {
 		total_len += read_len;
 
-		write_len = transport->Write(buf, read_len);
-		if (write_len < read_len) {
+		written_len = transport->Write(buf, read_len);
+		if (written_len < read_len) {
 			fprintf(stderr, "Failed to write all the data. Written length : %d, all data : %d\n",
-				write_len, read_len);
+				written_len, read_len);
 			break;
 		}
 	}
+#else
+
+	int sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
+
+	while (1) {
+		int try_read_len = sync_block_remain > buf_size ? buf_size : sync_block_remain;
+
+		// Try to read file data.
+		read_len = fread(buf, sizeof(char), try_read_len, fp);
+		if (read_len <= 0) {
+			// Reach the end of the file.
+			break;
+		}
+
+		// Send the data through USB
+		written_len = transport->Write(buf, read_len);
+		if (written_len < read_len) {
+			fprintf(stderr, "Failed to write all the data. Written length : %d, all data : %d\n",
+				written_len, read_len);
+			break;
+		}
+
+		sync_block_remain -= read_len;
+		total_len += written_len;
+
+		if (sync_block_remain == 0) {
+			// Reach the sync point
+			ret = polySyncData(transport, &wup_status);
+			if (ret < 0) {
+				fprintf(stderr, "Failed to sync data in transfer\n");
+				fclose(fp);
+				return -1;
+			}
+
+			if (wup_status.bStatus != WUP_STATUS_OK) {
+				fprintf(stderr, "Something wrong in the transferring, error is (%d)\n",
+					wup_status.bStatus);
+				fclose(fp);
+				return -1;
+			}
+
+			//Reset the sync block remain
+			sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
+		}
+	}
+#endif
 
 	printf("total_len is %d\n", total_len);
 	fclose(fp);
 
-	retries = 0;
+	ret = polySyncData(transport, &wup_status);
 
-	do {
-		Sleep(100);
-
-		//Try to do sync
-		memset(&wup_status, 0x00, sizeof(struct wup_status));
-
-		ret = polySendControlInfo(transport,
-			true,
-			PLCM_USB_REQUEST_GET_INFORMATION,
-			PLCM_USB_REQ_WUP_SYNC,
-			&wup_status,
-			sizeof(wup_status));
-
-		if (ret < 0) {
-			return -1;
-		}
-
-		printf("Got state: %d\n", wup_status.bState);
-
-	} while (wup_status.bState != WUP_STATE_dfuDNLOAD_SYNC && (retries++) < 10);
-
-	if (wup_status.bState != WUP_STATE_dfuDNLOAD_SYNC || retries >= 10) {
+	if (ret < 0) {
 		fprintf(stderr, "Failed to transfer all the data in %d times retries\n", 10);
 		return -1;
 	}
@@ -346,14 +411,14 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 	}
 
 	//Send the MD5 sum for verification
-	write_len = polySendControlInfo(transport,
+	written_len = polySendControlInfo(transport,
 		false,
 		PLCM_USB_REQUEST_SET_INFORMATION,
 		PLCM_USB_REQ_WUP_INT_CHECK,
 		md5_sum,
 		strnlen(md5_sum, sizeof(md5_sum)) + 1);
 
-	if (write_len < 0) {
+	if (written_len < 0) {
 		fprintf(stderr, "Failed to issue the md5sum control msg: %s\n", md5_sum);
 		return -1;
 	}
@@ -399,12 +464,18 @@ int main(int argc, char *argv[])
 
 	if (argc < 2) {
 		fprintf(stderr, "Invaild argument!\n");
-		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY]\n");
+		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] SyncFlag (default 0)\n");
 		fprintf(stderr, "Use the default directory: %s\n", base_dir);
 	}
 	else {
 		base_dir = argv[1];
 	}
+
+	if (argc >= 3) {
+		fSync = atoi(argv[2]);
+	}
+
+	printf("Sync mode: %d\n", fSync);
 
 	int total_file_count = 0;
 
