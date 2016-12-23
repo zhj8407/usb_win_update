@@ -14,6 +14,7 @@
 #include <Windows.h>
 
 #include "usb.h"
+#include "md5_utils.h"
 
 #define DEBUG_PRINT 0
 
@@ -76,38 +77,6 @@ int traverse_directory(const char *dirName,
 	}
 
 	return count;
-}
-
-size_t polyGenerateMD5Sum(const char *fileName, char *md5sum)
-{
-	size_t retValue = 0;
-	char cmd_buf[512];
-	char *tmp_results = "md5_result_tmp.txt";
-	FILE *md5_fp;
-
-	snprintf(cmd_buf, sizeof(cmd_buf), "C:\\bin\\md5sums -u %s > %s", fileName, tmp_results);
-
-	system(cmd_buf);
-
-	fopen_s(&md5_fp, tmp_results, "r");
-
-	if (md5_fp == NULL)
-		return -1;
-
-	retValue = fread(md5sum, sizeof(char), 32, md5_fp);
-	if (retValue != 32) {
-		fclose(md5_fp);
-		return -2;
-	}
-
-	md5sum[retValue] = '\0';
-
-	fclose(md5_fp);
-
-	_unlink(tmp_results);
-
-	return retValue;
-
 }
 
 char *buf;
@@ -590,7 +559,6 @@ int main(int argc, char *argv[])
 	printf("Test results: passed: %d, failed: %d\n",
 		pass_count, failure_count);
 #else
-
 	//int count = snprintf(buf, 1024, "%s", "zhangjie");
 	//buf[count + 1] = '\0';
 	memset(buf, 0xFF, buf_size);

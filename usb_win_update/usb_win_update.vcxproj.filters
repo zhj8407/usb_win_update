@@ -30,6 +30,9 @@
     <ClInclude Include="usb.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="md5_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -39,6 +42,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="usb_win.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="md5_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
