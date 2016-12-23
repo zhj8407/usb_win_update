@@ -17,7 +17,7 @@
 
 #define DEBUG_PRINT 0
 
-typedef int(*usb_file_transfer_func)(Transport *, const char *, const char *);
+typedef int(*usb_file_transfer_func)(Transport *, const char *);
 
 int on_adb_device_found(usb_ifc_info *info)
 {
@@ -63,7 +63,7 @@ int traverse_directory(const char *dirName,
 				printf("[File]:\t%s\\%s\n", dirName, file_find.name);
 #endif
 				(*totalCount)++;
-				if ((ret = callback(transport, pattern, file_find.name)) == 0) {
+				if ((ret = callback(transport, pattern)) == 0) {
 					count++;
 				}
 				else {
@@ -134,6 +134,7 @@ struct setup_packet {
 #define PLCM_USB_REQ_WUP_ABORT               0x0006
 #define PLCM_USB_REQ_WUP_SYNC                0x0007
 #define PLCM_USB_REQ_WUP_INT_CHECK           0x0008
+#define PLCM_USB_REQ_WUP_START_UPDATE		 0x0009
 
 #pragma pack (1)
 struct wup_status {
@@ -241,7 +242,7 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 	return 0;
 }
 
-int polySendImageFile(Transport *transport, const char *fileName, const char *destFileName)
+int polySendImageFile(Transport *transport, const char *fileName)
 {
 	FILE *fp;
 
@@ -288,7 +289,7 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 		strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
 		dnload_info.dwImageSize = (unsigned int)ops;
 		dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */
-		dnload_info.bForced = 0;
+		dnload_info.bForced = 1;
 
 		written_len = polySendControlInfo(transport,
 			false,
@@ -454,7 +455,6 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 
 	if (read_len < 0) {
 		fprintf(stderr, "Failed to read the status\n");
-		fclose(fp);
 		return -12;
 	}
 
@@ -464,6 +464,65 @@ int polySendImageFile(Transport *transport, const char *fileName, const char *de
 			wup_status.bState);
 		return -13;
 	}
+
+	return 0;
+}
+
+int polyStartDFU(Transport *transport, const char *fileName) {
+	int ret;
+	ssize_t read_len, written_len;
+	struct wup_status wup_status;
+
+	ret = polySendImageFile(transport, fileName);
+
+	if (ret) {
+		fprintf(stderr, "Failed to send the image file to device. ret: %d\n",
+			ret);
+		return -1;
+	}
+
+	//Try to start the update
+	written_len = polySendControlInfo(transport,
+		false,
+		PLCM_USB_REQUEST_SET_INFORMATION,
+		PLCM_USB_REQ_WUP_START_UPDATE,
+		NULL,
+		0);
+
+	if (written_len < 0) {
+		fprintf(stderr, "Failed to issue UPDATE START request\n");
+		return -14;
+	}
+
+	Sleep(5000);
+
+	// Check the status
+	memset(&wup_status, 0x00, sizeof(struct wup_status));
+
+	read_len = polySendControlInfo(transport,
+		true,
+		PLCM_USB_REQUEST_GET_INFORMATION,
+		PLCM_USB_REQ_WUP_GETSTATUS,
+		&wup_status,
+		sizeof(struct wup_status));
+
+	if (read_len < 0) {
+		fprintf(stderr, "Failed to read the status\n");
+		return -15;
+	}
+
+	if (wup_status.bStatus != WUP_STATUS_OK) {
+		fprintf(stderr, "Update Starting Failed. status(%d) state(%d)\n",
+			wup_status.bStatus,
+			wup_status.bState);
+		return -16;
+	}
+
+#if DEBUG_PRINT
+	printf("Current status: %d, state: %d\n",
+		wup_status.bStatus,
+		wup_status.bState);
+#endif
 
 	return 0;
 }
@@ -481,9 +540,11 @@ int main(int argc, char *argv[])
 	//char *base_dir = "c:\\aaa";
 	char *base_dir = "C:\\Users\\test\\Downloads\\data";
 
+	unsigned char fUpdate = 0;
+
 	if (argc < 2) {
 		fprintf(stderr, "Invaild argument!\n");
-		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] SyncFlag (default 0)\n");
+		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] SyncFlag (default 0) UpdateFlag (default 0)\n");
 		fprintf(stderr, "Use the default directory: %s\n", base_dir);
 	}
 	else {
@@ -494,13 +555,40 @@ int main(int argc, char *argv[])
 		fSync = atoi(argv[2]);
 	}
 
-	printf("Sync mode: %d\n", fSync);
+	if (argc >= 4) {
+		fUpdate = atoi(argv[3]);
+	}
 
-	int total_file_count = 0;
+	printf("Sync mode: %d, Update mode: %d\n",
+		fSync, fUpdate);
 
-	int file_count = traverse_directory(base_dir, polySendImageFile, transport, &total_file_count);
+	int i = 0;
 
-	printf("total file count: %d, transferred count: %d\n", total_file_count, file_count);
+	int pass_count = 0;
+	int failure_count = 0;
+
+	while (i++ < 1) {
+		int total_file_count = 0;
+
+		usb_file_transfer_func pFunc;
+		if (fUpdate)
+			pFunc = polyStartDFU;
+		else
+			pFunc = polySendImageFile;
+
+		int file_count = traverse_directory(base_dir, pFunc, transport, &total_file_count);
+
+		printf("%d times test: total file count: %d, transferred count: %d\n",
+			i, total_file_count, file_count);
+
+		if (total_file_count != file_count)
+			failure_count++;
+		else
+			pass_count++;
+	}
+
+	printf("Test results: passed: %d, failed: %d\n",
+		pass_count, failure_count);
 #else
 
 	//int count = snprintf(buf, 1024, "%s", "zhangjie");
