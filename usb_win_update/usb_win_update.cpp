@@ -369,8 +369,8 @@ int polySendImageFile(Transport *transport, const char *fileName)
 		// Send the data through USB
 		written_len = transport->Write(buf, read_len);
 		if (written_len < read_len) {
-			fprintf(stderr, "Failed to write all the data. Written length : %lld, all data : %lld\n",
-				(long long)written_len, (long long)read_len);
+			fprintf(stderr, "Failed to write all the data. Written length : %zd, all data : %zd\n",
+				written_len, read_len);
 			break;
 		}
 
@@ -401,7 +401,7 @@ int polySendImageFile(Transport *transport, const char *fileName)
 	}
 
 #if DEBUG_PRINT
-	printf("total_len is %llu\n", (unsigned long long)total_len);
+	printf("total_len is %zu\n", total_len);
 #endif
 	fclose(fp);
 

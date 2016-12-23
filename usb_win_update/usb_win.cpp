@@ -178,7 +178,7 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 #endif
 
 		while (len > 0) {
-			int xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
+			size_t xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
 			ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), xfer,
 				&written, time_out);
 
@@ -279,14 +279,14 @@ ssize_t WindowsUsbTransport::Read(void* data, size_t len) {
 	unsigned long read = 0;
 	int ret;
 
-	fprintf(stderr, "usb_read %d\n", len);
+	fprintf(stderr, "usb_read %zd\n", len);
 	if (nullptr != handle_) {
 		while (1) {
-			int xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
+			size_t xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
 
 			ret = AdbReadEndpointSync(handle_->adb_read_pipe, data, xfer, &read, time_out);
 			errno = GetLastError();
-			fprintf(stderr, "usb_read got: %ld, expected: %d, errno: %d\n", read, xfer, errno);
+			fprintf(stderr, "usb_read got: %ld, expected: %zd, errno: %d\n", read, xfer, errno);
 			if (ret) {
 				return read;
 			}
