@@ -393,8 +393,8 @@ int polySendImageFile(Transport *transport, const char *fileName)
 
 	char md5_sum[40];
 
-	ret = polyGenerateMD5Sum(fileName, md5_sum);
-	if (ret < 0) {
+	ret = polyGenerateMD5SumExt(fileName, md5_sum);
+	if (ret != 0) {
 		fprintf(stderr, "Failed to generate the MD5 Sum\n");
 		return -10;
 	}
@@ -559,6 +559,8 @@ int main(int argc, char *argv[])
 	printf("Test results: passed: %d, failed: %d\n",
 		pass_count, failure_count);
 #else
+
+#if 0
 	//int count = snprintf(buf, 1024, "%s", "zhangjie");
 	//buf[count + 1] = '\0';
 	memset(buf, 0xFF, buf_size);
@@ -572,6 +574,17 @@ int main(int argc, char *argv[])
 	transport->Write(buf, count);
 
 	//transport->Write(buf, 0);
+#else
+	char md5_sum[40];
+
+	int ret = polyGenerateMD5Sum("d:\\image\\polycom-cx5100cx5500-dev-1.3.0-0.tar", md5_sum);
+	if (ret == 0)
+		printf("MD5 sum is %s\n", md5_sum);
+
+	ret = polyGenerateMD5SumExt("d:\\image\\polycom-cx5100cx5500-dev-1.3.0-0.tar", md5_sum);
+	if (ret == 0)
+		printf("MD5 sum by external tool is %s\n", md5_sum);
+#endif
 #endif
 
 	free(buf);

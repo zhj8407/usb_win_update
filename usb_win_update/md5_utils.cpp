@@ -48,3 +48,34 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 
 	return 0;
 }
+
+int polyGenerateMD5SumExt(const char *fileName, char *md5sum)
+{
+	int retValue = 0;
+	char cmd_buf[512];
+	char *tmp_results = "md5_result_tmp.txt";
+	FILE *md5_fp;
+
+	snprintf(cmd_buf, sizeof(cmd_buf), "C:\\bin\\md5sums -u %s > %s", fileName, tmp_results);
+
+	system(cmd_buf);
+
+	fopen_s(&md5_fp, tmp_results, "r");
+
+	if (md5_fp == NULL)
+		return -1;
+
+	retValue = fread(md5sum, sizeof(char), 32, md5_fp);
+	if (retValue != 32) {
+		fclose(md5_fp);
+		return -2;
+	}
+
+	md5sum[retValue] = '\0';
+
+	fclose(md5_fp);
+
+	_unlink(tmp_results);
+
+	return 0;
+}
