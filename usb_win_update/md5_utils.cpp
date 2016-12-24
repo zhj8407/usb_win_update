@@ -19,7 +19,7 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 	unsigned char md5[17] = { 0 };
 	MD5_CTX md5_ctx;
 
-	fopen_s(&file_fp, fileName, "r");
+	fopen_s(&file_fp, fileName, "rb");
 
 	if (file_fp == NULL)
 		return -1;
