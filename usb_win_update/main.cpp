@@ -9,13 +9,15 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
-#include <io.h>
 
 #include "usb.h"
 #include "plcm_dfu.h"
 
 #if defined(_WIN32)
+#include <io.h>
 #include <Windows.h>
+#else
+#include <direct.h>
 #endif
 
 #define DEBUG_PRINT 0
