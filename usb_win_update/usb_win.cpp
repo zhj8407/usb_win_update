@@ -72,6 +72,7 @@ public:
 	ssize_t Write(const void* data, size_t len) override;
 	ssize_t ControlIO(bool is_in, void *setup, void* data, size_t len) override;
 	int Close() override;
+	void Wait(int ms) override;
 
 private:
 	std::unique_ptr<usb_handle> handle_;
@@ -179,7 +180,7 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 
 		while (len > 0) {
 			size_t xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
-			ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), xfer,
+			ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), (unsigned long)xfer,
 				&written, time_out);
 
 			if (ret == 0) {
@@ -256,10 +257,12 @@ ssize_t WindowsUsbTransport::ControlIO(bool is_in,
 			is_in,
 			setup,
 			data,
-			len,
+			(unsigned long)len,
 			&transferred)) {
 			errno = GetLastError();
 			fprintf(stderr, "usb_control_transfer failed. errno: %d\n", errno);
+			if (errno = ERROR_SEM_TIMEOUT)
+				return -2;
 			return -1;
 		}
 		else {
@@ -284,7 +287,7 @@ ssize_t WindowsUsbTransport::Read(void* data, size_t len) {
 		while (1) {
 			size_t xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
 
-			ret = AdbReadEndpointSync(handle_->adb_read_pipe, data, xfer, &read, time_out);
+			ret = AdbReadEndpointSync(handle_->adb_read_pipe, data, (unsigned long)xfer, &read, time_out);
 			errno = GetLastError();
 			fprintf(stderr, "usb_read got: %ld, expected: %zd, errno: %d\n", read, xfer, errno);
 			if (ret) {
@@ -307,6 +310,10 @@ ssize_t WindowsUsbTransport::Read(void* data, size_t len) {
 	fprintf(stderr, "usb_read failed: %d\n", errno);
 
 	return -1;
+}
+
+void WindowsUsbTransport::Wait(int ms) {
+	Sleep(ms);
 }
 
 void usb_cleanup_handle(usb_handle* handle) {

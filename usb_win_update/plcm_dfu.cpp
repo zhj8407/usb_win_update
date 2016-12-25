@@ -1,6 +1,3 @@
-// usb_win_update.cpp : Defines the entry point for the console application.
-//
-
 #include "stdafx.h"
 
 #include <stdlib.h>
@@ -9,80 +6,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
-#include <io.h>
 
-#include <Windows.h>
-
+#include "plcm_dfu.h"
 #include "usb.h"
 #include "md5_utils.h"
 
 #define DEBUG_PRINT 0
-
-typedef int(*usb_file_transfer_func)(Transport *, const char *);
-
-int on_adb_device_found(usb_ifc_info *info)
-{
-	printf("We found an adb device\n");
-	printf("\tVendor ID: 0x%04x\n", info->dev_vendor);
-	printf("\tProduct ID: 0x%04x\n", info->dev_product);
-	printf("\tSerial Number: %s\n", info->serial_number);
-
-	return 0;
-}
-
-int traverse_directory(const char *dirName,
-	usb_file_transfer_func callback,
-	Transport *transport,
-	int *totalCount)
-{
-	struct _finddata_t file_find;
-	intptr_t handle;
-	int done = 0;
-	char pattern[512];
-	int count;
-	int ret;
-
-	snprintf(pattern, sizeof(pattern), "%s\\*.*", dirName);
-
-	count = 0;
-
-	if ((handle = _findfirst(pattern, &file_find)) != -1) {
-		while (!(done = _findnext(handle, &file_find))) {
-			if (strcmp(file_find.name, "..") == 0) {
-				continue;
-			}
-
-			snprintf(pattern, sizeof(pattern), "%s\\%s", dirName, file_find.name);
-			if (file_find.attrib == _A_SUBDIR) {
-#if DEBUG_PRINT
-				printf("[Dir]:\t%s\\%s\n", dirName, file_find.name);
-#endif
-				count += traverse_directory(pattern, callback, transport, totalCount);
-			}
-			else {
-#if DEBUG_PRINT
-				printf("[File]:\t%s\\%s\n", dirName, file_find.name);
-#endif
-				(*totalCount)++;
-				if ((ret = callback(transport, pattern)) == 0) {
-					count++;
-				}
-				else {
-					fprintf(stderr, "Failed to transfer file: \t%s\\%s. ret is %d\n",
-						dirName, file_find.name, ret);
-				}
-			}
-		}
-		_findclose(handle);
-	}
-
-	return count;
-}
-
-char *buf;
-size_t buf_size = 1024 * 1024;
-
-static UINT8 fSync = 1;
 
 struct setup_packet {
 	unsigned char bRequestType;
@@ -170,7 +99,7 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 	ssize_t ret = 0;
 
 	do {
-		Sleep(1000);
+		transport->Wait(1000);
 
 		//Try to do sync
 		memset(wup_status, 0x00, sizeof(struct wup_status));
@@ -183,7 +112,7 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 			sizeof(struct wup_status));
 
 		if (ret < 0) {
-			if (GetLastError() == ERROR_SEM_TIMEOUT) {
+			if (ret == -2) {
 				fprintf(stderr, "Failed to get sync status. Retry!\n");
 				wup_status->bStatus = WUP_STATUS_errSTATE;
 			}
@@ -211,7 +140,8 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 	return 0;
 }
 
-int polySendImageFile(Transport *transport, const char *fileName)
+int polySendImageFile(Transport *transport, const char *fileName,
+	bool fUpdate = false, bool fSync = false, bool fForced = false)
 {
 	FILE *fp;
 
@@ -258,7 +188,7 @@ int polySendImageFile(Transport *transport, const char *fileName)
 		strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
 		dnload_info.dwImageSize = (unsigned int)ops;
 		dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */
-		dnload_info.bForced = 1;
+		dnload_info.bForced = fForced ? 1 : 0;
 
 		written_len = polySendControlInfo(transport,
 			false,
@@ -321,6 +251,16 @@ int polySendImageFile(Transport *transport, const char *fileName)
 	fseek(fp, 0, SEEK_SET);
 
 	//Start the data transfer
+	char *buf;
+	size_t buf_size = (1024 * 1024);
+
+	buf = (char *)malloc(buf_size);
+	if (!buf) {
+		fprintf(stderr, "Failed to allocate buffer. Size: %zd\n", buf_size);
+		fclose(fp);
+		return -6;
+	}
+
 	size_t total_len = 0;
 
 	size_t sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
@@ -351,8 +291,9 @@ int polySendImageFile(Transport *transport, const char *fileName)
 			ret = polySyncData(transport, &wup_status);
 			if (ret < 0) {
 				fprintf(stderr, "Failed to sync data in transfer\n");
+				free(buf);
 				fclose(fp);
-				return -6;
+				return -7;
 			}
 
 			if (wup_status.bStatus != WUP_STATUS_OK ||
@@ -360,14 +301,18 @@ int polySendImageFile(Transport *transport, const char *fileName)
 				fprintf(stderr, "Something wrong in the transferring, error is (%d)"
 					" BytesWritten: %u\n",
 					wup_status.bStatus, wup_status.u.dwWrittenBytes);
+				free(buf);
 				fclose(fp);
-				return -7;
+				return -8;
 			}
 
 			//Reset the sync block remain
 			sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
 		}
 	}
+
+	//Free the buffer
+	free(buf);
 
 #if DEBUG_PRINT
 	printf("total_len is %zu\n", total_len);
@@ -378,7 +323,7 @@ int polySendImageFile(Transport *transport, const char *fileName)
 
 	if (ret < 0) {
 		fprintf(stderr, "Failed to do sync\n");
-		return -8;
+		return -9;
 	}
 
 	if (wup_status.bStatus != WUP_STATUS_OK ||
@@ -386,7 +331,7 @@ int polySendImageFile(Transport *transport, const char *fileName)
 		fprintf(stderr, "Something wrong in the transferring, error is (%d)"
 			" writtenBytes: %d\n",
 			wup_status.bStatus, wup_status.u.dwWrittenBytes);
-		return -9;
+		return -10;
 	}
 
 	//Try to do integration check.
@@ -396,7 +341,7 @@ int polySendImageFile(Transport *transport, const char *fileName)
 	ret = polyGenerateMD5Sum(fileName, md5_sum);
 	if (ret != 0) {
 		fprintf(stderr, "Failed to generate the MD5 Sum\n");
-		return -10;
+		return -11;
 	}
 
 	//Send the MD5 sum for verification
@@ -409,7 +354,7 @@ int polySendImageFile(Transport *transport, const char *fileName)
 
 	if (written_len < 0) {
 		fprintf(stderr, "Failed to issue the md5sum control msg: %s\n", md5_sum);
-		return -11;
+		return -12;
 	}
 
 	// Check the status
@@ -424,31 +369,18 @@ int polySendImageFile(Transport *transport, const char *fileName)
 
 	if (read_len < 0) {
 		fprintf(stderr, "Failed to read the status\n");
-		return -12;
+		return -13;
 	}
 
 	if (wup_status.bStatus != WUP_STATUS_OK) {
 		fprintf(stderr, "Integration Checking Failed. status(%d) state(%d)\n",
 			wup_status.bStatus,
 			wup_status.bState);
-		return -13;
+		return -14;
 	}
 
-	return 0;
-}
-
-int polyStartDFU(Transport *transport, const char *fileName) {
-	int ret;
-	ssize_t read_len, written_len;
-	struct wup_status wup_status;
-
-	ret = polySendImageFile(transport, fileName);
-
-	if (ret) {
-		fprintf(stderr, "Failed to send the image file to device. ret: %d\n",
-			ret);
-		return -1;
-	}
+	if (!fUpdate)
+		return 0;
 
 	//Try to start the update
 	written_len = polySendControlInfo(transport,
@@ -463,7 +395,7 @@ int polyStartDFU(Transport *transport, const char *fileName) {
 		return -14;
 	}
 
-	Sleep(5000);
+	transport->Wait(5000);
 
 	// Check the status
 	memset(&wup_status, 0x00, sizeof(struct wup_status));
@@ -494,100 +426,4 @@ int polyStartDFU(Transport *transport, const char *fileName) {
 #endif
 
 	return 0;
-}
-
-int main(int argc, char *argv[])
-{
-	buf = (char *)malloc(buf_size);
-
-	if (buf == NULL)
-		return -1;
-
-	Transport *transport = usb_open(on_adb_device_found);
-
-#if 1
-	//char *base_dir = "c:\\aaa";
-	char *base_dir = "C:\\Users\\test\\Downloads\\data";
-
-	unsigned char fUpdate = 0;
-
-	if (argc < 2) {
-		fprintf(stderr, "Invaild argument!\n");
-		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] SyncFlag (default 0) UpdateFlag (default 0)\n");
-		fprintf(stderr, "Use the default directory: %s\n", base_dir);
-	}
-	else {
-		base_dir = argv[1];
-	}
-
-	if (argc >= 3) {
-		fSync = atoi(argv[2]);
-	}
-
-	if (argc >= 4) {
-		fUpdate = atoi(argv[3]);
-	}
-
-	printf("Sync mode: %d, Update mode: %d\n",
-		fSync, fUpdate);
-
-	int i = 0;
-
-	int pass_count = 0;
-	int failure_count = 0;
-
-	while (i++ < 1) {
-		int total_file_count = 0;
-
-		usb_file_transfer_func pFunc;
-		if (fUpdate)
-			pFunc = polyStartDFU;
-		else
-			pFunc = polySendImageFile;
-
-		int file_count = traverse_directory(base_dir, pFunc, transport, &total_file_count);
-
-		printf("%d times test: total file count: %d, transferred count: %d\n",
-			i, total_file_count, file_count);
-
-		if (total_file_count != file_count)
-			failure_count++;
-		else
-			pass_count++;
-	}
-
-	printf("Test results: passed: %d, failed: %d\n",
-		pass_count, failure_count);
-#else
-
-#if 1
-	//int count = snprintf(buf, 1024, "%s", "zhangjie");
-	//buf[count + 1] = '\0';
-	memset(buf, 0xFF, buf_size);
-
-	int count = 1023;
-	if (argc >= 2)
-		count = atoi(argv[1]);
-
-	printf("We are going to transfer %d bytes\n", count);
-
-	transport->Write(buf, count);
-
-	//transport->Write(buf, 0);
-#else
-	char md5_sum[40];
-
-	int ret = polyGenerateMD5Sum("C:\\Users\\jiezhang\\Downloads\\55.0.2883.87_chrome_installer_x64.exe", md5_sum);
-	if (ret == 0)
-		printf("MD5 sum is %s\n", md5_sum);
-
-	ret = polyGenerateMD5SumExt("C:\\Users\\jiezhang\\Downloads\\55.0.2883.87_chrome_installer_x64.exe", md5_sum);
-	if (ret == 0)
-		printf("MD5 sum by external tool is %s\n", md5_sum);
-#endif
-#endif
-
-	free(buf);
-
-    return 0;
 }

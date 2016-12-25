@@ -62,6 +62,9 @@ public:
 	// Blocks until the transport disconnects. Transports that don't support
 	// this will return immediately. Returns 0 on success.
 	virtual int WaitForDisconnect() { return 0; }
+
+	// Waiting function
+	virtual void Wait(int ms) = 0;
 };
 
 #endif  // TRANSPORT_H_
