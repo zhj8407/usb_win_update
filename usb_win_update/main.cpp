@@ -32,11 +32,6 @@ int on_plcm_dfu_device_found(usb_ifc_info *info)
     if (info->dev_vendor != PLCM_VENDOR_ID)
         return -1;
 
-    printf("\tVendor ID: 0x%04x\n", info->dev_vendor);
-    printf("\tProduct ID: 0x%04x\n", info->dev_product);
-    printf("\tSerial Number: %s\n", info->serial_number);
-    printf("\tInterface Class: 0x%x\n", info->ifc_class);
-
     if (info->ifc_class == PLCM_DFU_INTERFACE_CLASS &&
             info->ifc_subclass == PLCM_DFU_INTERFACE_SUBCLASS &&
             info->ifc_protocol == PLCM_DFU_INTERFACE_PROTOCOL &&
@@ -96,7 +91,7 @@ int traverse_directory(const char *dirName,
 				printf("[File]:\t%s\\%s\n", dirName, file_find.name);
 #endif
 				(*totalCount)++;
-				if ((ret = callback(transport, pattern, fUpdate, fSync, fUpdate)) == 0) {
+				if ((ret = callback(transport, pattern, fUpdate, fSync, fForced)) == 0) {
 					count++;
 				}
 				else {
@@ -173,9 +168,11 @@ int main(int argc, char *argv[])
 #if 1
 	//char *base_dir = "c:\\aaa";
 	char *base_dir = "C:\\Users\\test\\Downloads\\data";
+    //char *base_dir = "C:\\Python27amd64";
 
 	bool fSync = true;
 	bool fUpdate = false;
+    bool fForced = true;
 
 	if (argc < 2) {
 		fprintf(stderr, "Invaild argument!\n");
@@ -187,15 +184,15 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc >= 3) {
-		fSync = atoi(argv[2]) != 0;
+		fForced = atoi(argv[2]) != 0;
 	}
 
 	if (argc >= 4) {
 		fUpdate = atoi(argv[3]) != 0;
 	}
 
-	printf("Sync mode: %d, Update mode: %d\n",
-		fSync, fUpdate);
+	printf("Sync mode: %d, Update mode: %d, Forced: %d\n",
+		fSync, fUpdate, fForced);
 
 	int i = 0;
 
@@ -210,7 +207,7 @@ int main(int argc, char *argv[])
 			transport,
 			fUpdate,
 			fSync,
-			true,
+			fForced,
 			&total_file_count);
 
 		printf("%d times test: total file count: %d, transferred count: %d\n",
@@ -227,6 +224,9 @@ int main(int argc, char *argv[])
 #else
 
 #if 1
+    char *buf;
+    size_t buf_size = 1024 * 1024;
+    buf = (char *)malloc(buf_size);
 	//int count = snprintf(buf, 1024, "%s", "zhangjie");
 	//buf[count + 1] = '\0';
 	memset(buf, 0xFF, buf_size);
@@ -238,6 +238,8 @@ int main(int argc, char *argv[])
 	printf("We are going to transfer %d bytes\n", count);
 
 	transport->Write(buf, count);
+
+    free(buf);
 
 	//transport->Write(buf, 0);
 #else

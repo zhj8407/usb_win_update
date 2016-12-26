@@ -161,23 +161,6 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 	//fprintf(stderr, "usb_write %d\n", len);
 	if (nullptr != handle_) {
 		// Perform write
-#if 1
-		if (len == 0) {
-			fprintf(stderr, "usb_write: write the short packet. ZLP\n");
-			ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
-				&written_zlp, time_out);
-			if (ret == 0) {
-				errno = GetLastError();
-				fprintf(stderr, "AdbWriteEndpointSync ZLP returned %d, errno: %d\n", ret, errno);
-				// assume ERROR_INVALID_HANDLE indicates we are disconnected
-				if (errno == ERROR_INVALID_HANDLE)
-					usb_kick(handle_.get());
-				return -1;
-			}
-			return 0;
-		}
-#endif
-
 		while (len > 0) {
 			size_t xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
 			ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), (unsigned long)xfer,
@@ -192,13 +175,12 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 				return -1;
 			}
 
-#if 1
 			if (handle_->zero_mask && ((xfer & handle_->zero_mask) == 0)) {
 				//Send the ZLP
+#if 1
 				//fprintf(stdout, "Send the ZLP\n");
 				ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
 					&written_zlp, time_out);
-#if 0
 				if (ret == 0) {
 					errno = GetLastError();
 					fprintf(stderr, "AdbWriteEndpointSync ZLP returned %d, errno: %d\n", ret, errno);
@@ -206,24 +188,15 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len) {
 					if (errno == ERROR_INVALID_HANDLE)
 						usb_kick(handle_.get());
 					return -1;
-				}
+                }
+#else
+                ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
+                    &written_zlp, time_out);
+                ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
+                    &written_zlp, time_out);
 #endif
-#if 1
-				ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
-					&written_zlp, time_out);
-#if 0
-				if (ret == 0) {
-					errno = GetLastError();
-					fprintf(stderr, "AdbWriteEndpointSync ZLP returned %d, errno: %d\n", ret, errno);
-					// assume ERROR_INVALID_HANDLE indicates we are disconnected
-					if (errno == ERROR_INVALID_HANDLE)
-						usb_kick(handle_.get());
-					return -1;
-				}
-#endif
-#endif
+				
 			}
-#endif
 
 			count += written;
 			len -= written;
@@ -374,21 +347,22 @@ int recognized_device(usb_handle* handle, ifc_match_func callback) {
 		return 0;
 	}
 
-#if 0
-	// Must have two endpoints
-	if (2 != interf_desc.bNumEndpoints) {
+	// Must have only one endpoints
+	if (1 != interf_desc.bNumEndpoints) {
 		return 0;
 	}
-#endif
 
 	AdbEndpointInformation endpoint_info;
 
 	if (AdbGetEndpointInformation(handle->adb_interface, 0, &endpoint_info)) {
 		handle->zero_mask = endpoint_info.max_packet_size - 1;
+        info.has_bulk_out = 1;
+        info.has_bulk_in = 0;
 		fprintf(stderr, "handle->zero_mask is %d\n", handle->zero_mask);
 	}
 	else {
 		fprintf(stderr, "Failed to get the endpoint information\n");
+        return 0;
 	}
 
 	info.dev_vendor = device_desc.idVendor;
