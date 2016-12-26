@@ -17,7 +17,7 @@
 #include <io.h>
 #include <Windows.h>
 #else
-#include <direct.h>
+#include <dirent.h>
 #endif
 
 #define DEBUG_PRINT 0
@@ -133,6 +133,10 @@ int traverse_directory(const char *dirName,
 			}
 		}
 	}
+
+	closedir(basedir);
+
+	return count;
 #endif
 }
 
