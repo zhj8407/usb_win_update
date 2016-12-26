@@ -22,14 +22,34 @@
 
 #define DEBUG_PRINT 0
 
-int on_adb_device_found(usb_ifc_info *info)
-{
-	printf("We found an adb device\n");
-	printf("\tVendor ID: 0x%04x\n", info->dev_vendor);
-	printf("\tProduct ID: 0x%04x\n", info->dev_product);
-	printf("\tSerial Number: %s\n", info->serial_number);
+#define PLCM_VENDOR_ID                  0x095D
+#define PLCM_DFU_INTERFACE_CLASS        0xFF
+#define PLCM_DFU_INTERFACE_SUBCLASS     0xF0
+#define PLCM_DFU_INTERFACE_PROTOCOL     0x00
 
-	return 0;
+int on_plcm_dfu_device_found(usb_ifc_info *info)
+{
+    if (info->dev_vendor != PLCM_VENDOR_ID)
+        return -1;
+
+    printf("\tVendor ID: 0x%04x\n", info->dev_vendor);
+    printf("\tProduct ID: 0x%04x\n", info->dev_product);
+    printf("\tSerial Number: %s\n", info->serial_number);
+    printf("\tInterface Class: 0x%x\n", info->ifc_class);
+
+    if (info->ifc_class == PLCM_DFU_INTERFACE_CLASS &&
+            info->ifc_subclass == PLCM_DFU_INTERFACE_SUBCLASS &&
+            info->ifc_protocol == PLCM_DFU_INTERFACE_PROTOCOL &&
+            !info->has_bulk_in &&
+            info->has_bulk_out) {
+        printf("We found an Polycom Device\n");
+        printf("\tVendor ID: 0x%04x\n", info->dev_vendor);
+        printf("\tProduct ID: 0x%04x\n", info->dev_product);
+        printf("\tSerial Number: %s\n", info->serial_number);
+        return 0;
+    }
+
+    return -1;
 }
 
 int traverse_directory(const char *dirName,
@@ -94,6 +114,7 @@ int traverse_directory(const char *dirName,
 	struct dirent *de;
 	char pattern[512];
 	int count;
+	int ret;
 	
 	count = 0;
 	basedir = opendir(dirName);
@@ -142,7 +163,12 @@ int traverse_directory(const char *dirName,
 
 int main(int argc, char *argv[])
 {
-	Transport *transport = usb_open(on_adb_device_found);
+	Transport *transport = usb_open(on_plcm_dfu_device_found);
+
+    if (transport == NULL) {
+        fprintf(stderr, "Failed to find the available device\n");
+        return -1;
+    }
 
 #if 1
 	//char *base_dir = "c:\\aaa";

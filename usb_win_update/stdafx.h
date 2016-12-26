@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 #include <tchar.h>
+#else
+#include <unistd.h>
 #endif
 
 

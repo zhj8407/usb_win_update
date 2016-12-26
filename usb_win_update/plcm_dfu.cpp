@@ -1,8 +1,10 @@
 #include "stdafx.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
@@ -34,6 +36,7 @@ struct setup_packet {
 #define PLCM_USB_REQ_WUP_INT_CHECK           0x0008
 #define PLCM_USB_REQ_WUP_START_UPDATE		 0x0009
 
+#if defined(_WIN32)
 #pragma pack (1)
 struct wup_status {
 	UINT8 bStatus;
@@ -52,6 +55,24 @@ struct wup_dnload_info {
 	UINT8 bReserved[23];
 };
 #pragma pack ()
+#else
+struct wup_status {
+	uint8_t bStatus;
+	uint8_t bState;
+	union {
+		uint32_t dwWrittenBytes;
+		uint32_t bReserved[6];
+	} u;
+}__attribute__((packed));
+
+struct wup_dnload_info {
+	char sSwVersion[32];
+	uint32_t dwImageSize;
+	uint32_t dwSyncBlockSize;
+	uint8_t bForced;
+	uint8_t bReserved[23];
+}__attribute__((packed));
+#endif
 
 #define WUP_STATUS_OK                   0x00
 #define WUP_STATUS_errSTATE             0x01
@@ -140,6 +161,12 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 	return 0;
 }
 
+#if defined(_WIN32)
+#define POSITION(x) x
+#else
+#define POSITION(x) x.__pos
+#endif
+
 int polySendImageFile(Transport *transport, const char *fileName,
 	bool fUpdate = false, bool fSync = false, bool fForced = false)
 {
@@ -158,7 +185,11 @@ int polySendImageFile(Transport *transport, const char *fileName,
 	if (transport == NULL)
 		return -EINVAL;
 
+#if defined(_WIN32)
 	fopen_s(&fp, fileName, "rb");
+#else
+    fp = fopen(fileName, "rb");
+#endif
 
 	if (fp == NULL) {
 		return -EINVAL;
@@ -176,7 +207,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 #endif
 
 	//If the filesize is zero. Do not transfer it.
-	if (ops == 0) {
+	if (POSITION(ops) == 0) {
 		fclose(fp);
 		return -1;
 	}
@@ -185,8 +216,12 @@ int polySendImageFile(Transport *transport, const char *fileName,
 
 	do {
 		//Send the download information
+#if defined(_WIN32)
 		strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
-		dnload_info.dwImageSize = (unsigned int)ops;
+#else
+		strncpy(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
+#endif
+		dnload_info.dwImageSize = (unsigned int)(POSITION(ops));
 		dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */
 		dnload_info.bForced = fForced ? 1 : 0;
 
@@ -263,7 +298,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 
 	size_t total_len = 0;
 
-	size_t sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
+	size_t sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)POSITION(ops) + 1;
 
 	while (1) {
 		size_t try_read_len = sync_block_remain > buf_size ? buf_size : sync_block_remain;
@@ -307,7 +342,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 			}
 
 			//Reset the sync block remain
-			sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)ops + 1;
+			sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)POSITION(ops) + 1;
 		}
 	}
 

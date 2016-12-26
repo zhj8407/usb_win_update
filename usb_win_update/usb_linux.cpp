@@ -37,6 +37,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <sys/time.h>
+
 #include <linux/usbdevice_fs.h>
 #include <linux/version.h>
 #include <linux/usb/ch9.h>
@@ -80,6 +82,7 @@ struct usb_handle
 {
 	char fname[64];
 	int desc;
+    int intf_num;
 	unsigned char ep_in;
 	unsigned char ep_out;
 };
@@ -91,6 +94,7 @@ public:
 
 	ssize_t Read(void* data, size_t len) override;
 	ssize_t Write(const void* data, size_t len) override;
+	ssize_t ControlIO(bool is_in, void *setup, void *data, size_t len) override;
 	int Close() override;
 	int WaitForDisconnect() override;
 	void Wait(int ms) override;
@@ -361,6 +365,7 @@ static std::unique_ptr<usb_handle> find_usb_device(const char* base, ifc_match_f
 			if (filter_usb_device(de->d_name, desc, n, writable, callback, &in, &out, &ifc) == 0) {
 				usb.reset(new usb_handle());
 				strcpy(usb->fname, devname);
+                usb->intf_num = ifc;
 				usb->ep_in = in;
 				usb->ep_out = out;
 				usb->desc = fd;
@@ -380,6 +385,13 @@ static std::unique_ptr<usb_handle> find_usb_device(const char* base, ifc_match_f
 	closedir(busdir);
 
 	return usb;
+}
+
+static double now()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
 }
 
 ssize_t LinuxUsbTransport::Write(const void* _data, size_t len)
@@ -459,6 +471,34 @@ ssize_t LinuxUsbTransport::Read(void* _data, size_t len)
 	}
 
 	return count;
+}
+
+ssize_t LinuxUsbTransport::ControlIO(bool is_in, void *setup, void *data, size_t len)
+{
+	struct usbdevfs_ctrltransfer ctrl;
+	int ret;
+	
+	// Copy the setup packet
+	memcpy(&ctrl, setup, sizeof(ctrl));
+
+	// Set the bRequestType
+    ctrl.bRequestType = USB_TYPE_STANDARD | USB_RECIP_DEVICE;
+    ctrl.bRequestType |= (is_in ? USB_DIR_IN : USB_DIR_OUT);
+    ctrl.wIndex = ((ctrl.wIndex & 0xFF00) | (handle_->intf_num & 0xFF));
+    ctrl.wLength = (unsigned short)len;
+    ctrl.data = data;
+	ctrl.timeout = 5000;    /* in milliseconds */
+
+	ret = ioctl(handle_->desc, USBDEVFS_CONTROL, &ctrl);
+
+    if (ret < 0) {
+        errno = -ret;
+        if (errno == ETIMEDOUT)
+            return -2;
+        return -1;
+    }
+
+	return ret;
 }
 
 int LinuxUsbTransport::Close()
