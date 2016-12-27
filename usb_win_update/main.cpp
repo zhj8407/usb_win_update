@@ -48,11 +48,12 @@ int on_plcm_dfu_device_found(usb_ifc_info *info)
 }
 
 int traverse_directory(const char *dirName,
-	usb_file_transfer_func callback,
-	Transport *transport,
-	bool fUpdate,
-	bool fSync,
-	bool fForced,
+    usb_file_transfer_func callback,
+    Transport *transport,
+    const char *swVersion,
+    bool fUpdate,
+    bool fSync,
+    bool fForced,
 	int *totalCount)
 {
 #if defined(_WIN32)
@@ -81,6 +82,7 @@ int traverse_directory(const char *dirName,
 				count += traverse_directory(pattern,
 					callback,
 					transport,
+                    swVersion,
 					fUpdate,
 					fSync,
 					fForced,
@@ -91,7 +93,7 @@ int traverse_directory(const char *dirName,
 				printf("[File]:\t%s\\%s\n", dirName, file_find.name);
 #endif
 				(*totalCount)++;
-				if ((ret = callback(transport, pattern, fUpdate, fSync, fForced)) == 0) {
+				if ((ret = callback(transport, pattern, swVersion, fUpdate, fSync, fForced)) == 0) {
 					count++;
 				}
 				else {
@@ -130,6 +132,7 @@ int traverse_directory(const char *dirName,
 			count += traverse_directory(pattern,
 				callback,
 				transport,
+                swVersion,
 				fUpdate,
 				fSync,
 				fForced,
@@ -140,7 +143,7 @@ int traverse_directory(const char *dirName,
 			printf("[File]:\t%s/%s\n", dirName, de->d_name);
 #endif
 			(*totalCount)++;
-			if ((ret = callback(transport, pattern, fUpdate, fSync, fUpdate)) == 0) {
+			if ((ret = callback(transport, pattern, swVersion, fUpdate, fSync, fUpdate)) == 0) {
 				count++;
 			}
 			else {
@@ -174,9 +177,12 @@ int main(int argc, char *argv[])
 	bool fUpdate = false;
     bool fForced = true;
 
+    char *version = "1.3.0-110176";
+
 	if (argc < 2) {
 		fprintf(stderr, "Invaild argument!\n");
-		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] SyncFlag (default 0) UpdateFlag (default 0)\n");
+		fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] [ForceFlag(1)]"
+            " [UpdateFlag(0)] [VersionNumber(1.3.0-110176)]\n");
 		fprintf(stderr, "Use the default directory: %s\n", base_dir);
 	}
 	else {
@@ -191,8 +197,12 @@ int main(int argc, char *argv[])
 		fUpdate = atoi(argv[3]) != 0;
 	}
 
-	printf("Sync mode: %d, Update mode: %d, Forced: %d\n",
-		fSync, fUpdate, fForced);
+    if (argc >= 5) {
+        version = argv[4];
+    }
+
+	printf("Sync mode: %d, Update mode: %d, Forced: %d, Version: %s\n",
+		fSync, fUpdate, fForced, version);
 
 	int i = 0;
 
@@ -205,6 +215,7 @@ int main(int argc, char *argv[])
 		int file_count = traverse_directory(base_dir,
 			polySendImageFile,
 			transport,
+            version,
 			fUpdate,
 			fSync,
 			fForced,

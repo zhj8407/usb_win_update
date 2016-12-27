@@ -168,7 +168,8 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
 #endif
 
 int polySendImageFile(Transport *transport, const char *fileName,
-	bool fUpdate = false, bool fSync = false, bool fForced = false)
+	const char *swVersion, bool fUpdate = false,
+    bool fSync = false, bool fForced = false)
 {
 	FILE *fp;
 
@@ -217,9 +218,9 @@ int polySendImageFile(Transport *transport, const char *fileName,
 	do {
 		//Send the download information
 #if defined(_WIN32)
-		strncpy_s(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
+		strncpy_s(dnload_info.sSwVersion, swVersion, sizeof(dnload_info.sSwVersion));
 #else
-		strncpy(dnload_info.sSwVersion, "1.3.0-110161", sizeof(dnload_info.sSwVersion));
+		strncpy(dnload_info.sSwVersion, swVersion, sizeof(dnload_info.sSwVersion));
 #endif
 		dnload_info.dwImageSize = (unsigned int)(POSITION(ops));
 		dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */

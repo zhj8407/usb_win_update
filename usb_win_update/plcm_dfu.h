@@ -5,9 +5,9 @@
 
 #include "transport.h"
 
-typedef int(*usb_file_transfer_func)(Transport *, const char *, bool, bool, bool);
+typedef int(*usb_file_transfer_func)(Transport *, const char *, const char *, bool, bool, bool);
 
 int polySendImageFile(Transport *transport, const char *fileName,
-	bool fUpdate, bool fSync, bool fForced);
+	const char *swVersion, bool fUpdate, bool fSync, bool fForce);
 
 #endif // !_PLCM_USB_DFU_H
