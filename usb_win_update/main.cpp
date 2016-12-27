@@ -29,10 +29,8 @@
 
 int on_plcm_dfu_device_found(usb_ifc_info *info)
 {
-    if (info->dev_vendor != PLCM_VENDOR_ID)
-        return -1;
-
-    if (info->ifc_class == PLCM_DFU_INTERFACE_CLASS &&
+    if (info->dev_vendor == PLCM_VENDOR_ID &&
+    		info->ifc_class == PLCM_DFU_INTERFACE_CLASS &&
             info->ifc_subclass == PLCM_DFU_INTERFACE_SUBCLASS &&
             info->ifc_protocol == PLCM_DFU_INTERFACE_PROTOCOL &&
             !info->has_bulk_in &&
@@ -147,7 +145,7 @@ int traverse_directory(const char *dirName,
 				count++;
 			}
 			else {
-				fprintf(stderr, "Failed to transfer file: \t%s\\%s. ret is %d\n",
+				fprintf(stderr, "Failed to transfer file: \t%s/%s. ret is %d\n",
 					dirName, de->d_name, ret);
 			}
 		}
@@ -170,14 +168,14 @@ int main(int argc, char *argv[])
 
 #if 1
 	//char *base_dir = "c:\\aaa";
-	char *base_dir = "C:\\Users\\test\\Downloads\\data";
+	char const *base_dir = "C:\\Users\\test\\Downloads\\data";
     //char *base_dir = "C:\\Python27amd64";
 
 	bool fSync = true;
 	bool fUpdate = false;
     bool fForced = true;
 
-    char *version = "1.3.0-110176";
+    char const *version = "1.3.0-110176";
 
 	if (argc < 2) {
 		fprintf(stderr, "Invaild argument!\n");

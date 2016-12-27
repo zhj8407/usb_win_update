@@ -85,6 +85,7 @@ struct usb_handle
     int intf_num;
 	unsigned char ep_in;
 	unsigned char ep_out;
+	unsigned int zero_mask;
 };
 
 class LinuxUsbTransport : public Transport {
@@ -136,7 +137,8 @@ static int check(void *_desc, int len, unsigned type, int size)
 static int filter_usb_device(char* sysfs_name,
 	char *ptr, int len, int writable,
 	ifc_match_func callback,
-	int *ept_in_id, int *ept_out_id, int *ifc_id)
+	int *ept_in_id, int *ept_out_id,
+	int *ifc_id, unsigned int *zero_mask)
 {
 	struct usb_device_descriptor *dev;
 	struct usb_config_descriptor *cfg;
@@ -147,6 +149,7 @@ static int filter_usb_device(char* sysfs_name,
 	int in, out;
 	unsigned i;
 	unsigned e;
+	unsigned zero_mask_out;
 
 	if (check(ptr, len, USB_DT_DEVICE, USB_DT_DEVICE_SIZE))
 		return -1;
@@ -199,7 +202,8 @@ static int filter_usb_device(char* sysfs_name,
 		}
 	}
 
-	for (i = 0; i < cfg->bNumInterfaces; i++) {
+    i = 0;
+    while (i < cfg->bNumInterfaces) {
 
 		while (len > 0) {
 			struct usb_descriptor_header *hdr = (struct usb_descriptor_header *)ptr;
@@ -215,6 +219,13 @@ static int filter_usb_device(char* sysfs_name,
 		ifc = (struct usb_interface_descriptor *)ptr;
 		len -= ifc->bLength;
 		ptr += ifc->bLength;
+
+        // Skip the alternate interface
+        if (ifc->bAlternateSetting != 0 &&
+                (i - 1) == ifc->bInterfaceNumber)
+            continue;
+
+        i++;
 
 		in = -1;
 		out = -1;
@@ -246,6 +257,7 @@ static int filter_usb_device(char* sysfs_name,
 			}
 			else {
 				out = ept->bEndpointAddress;
+				zero_mask_out = ept->wMaxPacketSize - 1;
 			}
 
 			// For USB 3.0 devices skip the SS Endpoint Companion descriptor
@@ -263,6 +275,7 @@ static int filter_usb_device(char* sysfs_name,
 			*ept_in_id = in;
 			*ept_out_id = out;
 			*ifc_id = ifc->bInterfaceNumber;
+			*zero_mask = zero_mask_out;
 			return 0;
 		}
 	}
@@ -333,8 +346,9 @@ static std::unique_ptr<usb_handle> find_usb_device(const char* base, ifc_match_f
 {
 	std::unique_ptr<usb_handle> usb;
 	char devname[64];
-	char desc[1024];
+	char desc[4096];
 	int n, in, out, ifc;
+	unsigned zero_mask;
 
 	DIR *busdir;
 	struct dirent *de;
@@ -362,13 +376,14 @@ static std::unique_ptr<usb_handle> find_usb_device(const char* base, ifc_match_f
 
 			n = read(fd, desc, sizeof(desc));
 
-			if (filter_usb_device(de->d_name, desc, n, writable, callback, &in, &out, &ifc) == 0) {
+			if (filter_usb_device(de->d_name, desc, n, writable, callback, &in, &out, &ifc, &zero_mask) == 0) {
 				usb.reset(new usb_handle());
 				strcpy(usb->fname, devname);
                 usb->intf_num = ifc;
 				usb->ep_in = in;
 				usb->ep_out = out;
 				usb->desc = fd;
+				usb->zero_mask = zero_mask;
 
 				n = ioctl(fd, USBDEVFS_CLAIMINTERFACE, &ifc);
 				if (n != 0) {
@@ -400,6 +415,7 @@ ssize_t LinuxUsbTransport::Write(const void* _data, size_t len)
 	unsigned count = 0;
 	struct usbdevfs_bulktransfer bulk;
 	int n;
+	size_t orig_len = len;
 
 	if (handle_->ep_out == 0 || handle_->desc == -1) {
 		return -1;
@@ -425,6 +441,22 @@ ssize_t LinuxUsbTransport::Write(const void* _data, size_t len)
 		len -= xfer;
 		data += xfer;
 	} while (len > 0);
+
+	if (handle_->zero_mask && !(orig_len & handle_->zero_mask)) {
+		// If the transfer is an even multiple of the packet size,
+		// We need to send a ZLP
+		bulk.ep = handle_->ep_out;
+		bulk.len = 0;
+		bulk.data = data;
+		bulk.timeout = 0;
+
+		n = ioctl(handle_->desc, USBDEVFS_BULK, &bulk);
+		if (n < 0) {
+			DBG("ERROR: n = %d, errno = %d (%s)\n",
+				n, errno, strerror(errno));
+			return -1;
+		}
+	}
 
 	return count;
 }
@@ -482,7 +514,7 @@ ssize_t LinuxUsbTransport::ControlIO(bool is_in, void *setup, void *data, size_t
 	memcpy(&ctrl, setup, sizeof(ctrl));
 
 	// Set the bRequestType
-    ctrl.bRequestType = USB_TYPE_STANDARD | USB_RECIP_DEVICE;
+    ctrl.bRequestType = USB_TYPE_STANDARD | USB_RECIP_INTERFACE;
     ctrl.bRequestType |= (is_in ? USB_DIR_IN : USB_DIR_OUT);
     ctrl.wIndex = ((ctrl.wIndex & 0xFF00) | (handle_->intf_num & 0xFF));
     ctrl.wLength = (unsigned short)len;

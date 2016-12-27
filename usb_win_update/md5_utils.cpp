@@ -57,7 +57,7 @@ int polyGenerateMD5SumExt(const char *fileName, char *md5sum)
 {
 	size_t retValue = 0;
 	char cmd_buf[512];
-	char *tmp_results = "md5_result_tmp.txt";
+	char const *tmp_results = "md5_result_tmp.txt";
 	FILE *md5_fp;
 
 #if defined(_WIN32)
