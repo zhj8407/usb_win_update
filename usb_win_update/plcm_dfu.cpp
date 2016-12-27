@@ -186,11 +186,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 	if (transport == NULL)
 		return -EINVAL;
 
-#if defined(_WIN32)
-	fopen_s(&fp, fileName, "rb");
-#else
     fp = fopen(fileName, "rb");
-#endif
 
 	if (fp == NULL) {
 		return -EINVAL;
@@ -217,11 +213,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 
 	do {
 		//Send the download information
-#if defined(_WIN32)
-		strncpy_s(dnload_info.sSwVersion, swVersion, sizeof(dnload_info.sSwVersion));
-#else
 		strncpy(dnload_info.sSwVersion, swVersion, sizeof(dnload_info.sSwVersion));
-#endif
 		dnload_info.dwImageSize = (unsigned int)(POSITION(ops));
 		dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */
 		dnload_info.bForced = fForced ? 1 : 0;
