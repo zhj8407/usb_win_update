@@ -246,3 +246,7 @@ ModelManifest.xml
 
 *.o
 dfu_tool
+
+tags
+.tags
+.tags*

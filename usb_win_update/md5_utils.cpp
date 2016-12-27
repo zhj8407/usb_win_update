@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#if !defined(__APPLE__)
 #include <openssl/md5.h>
+#endif
 
 #include "md5_utils.h"
 
@@ -12,8 +14,42 @@
 
 #define FILE_READ_BUFFER_SIZE	(1024 * 1024)
 
+#if defined(__APPLE__)
+static int polyGenerateMD5SumExt(const char *fileName, char *md5sum)
+{
+    size_t retValue = 0;
+    char cmd_buf[512];
+    char const *tmp_results = "md5_result_tmp.txt";
+    FILE *md5_fp;
+
+    snprintf(cmd_buf, sizeof(cmd_buf), "/sbin/md5 -r %s > %s", fileName, tmp_results);
+
+    system(cmd_buf);
+
+    md5_fp = fopen(tmp_results, "r");
+
+    if (md5_fp == NULL)
+        return -1;
+
+    retValue = fread(md5sum, sizeof(char), 32, md5_fp);
+    if (retValue != 32) {
+        fclose(md5_fp);
+        return -2;
+    }
+
+    md5sum[retValue] = '\0';
+
+    fclose(md5_fp);
+
+    unlink(tmp_results);
+
+    return 0;
+}
+#endif
+
 int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 {
+#if !defined(__APPLE__)
     size_t retValue = 0;
     FILE *file_fp;
     unsigned char md5[17] = { 0 };
@@ -47,4 +83,7 @@ int polyGenerateMD5Sum(const char *fileName, char *md5sum)
         snprintf(md5sum + 2 * i, 4, "%02x", md5[i]);
 
     return 0;
+#else
+    return polyGenerateMD5SumExt(fileName, md5sum);
+#endif
 }
