@@ -29,8 +29,8 @@
 // semantically, one should either use disallow both or neither. Try to
 // avoid these in new code.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&) = delete;      \
-  void operator=(const TypeName&) = delete
+    TypeName(const TypeName&) = delete;      \
+    void operator=(const TypeName&) = delete
 
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
@@ -39,32 +39,35 @@ typedef SSIZE_T ssize_t;
 
 // General interface to allow the fastboot protocol to be used over different
 // types of transports.
-class Transport {
+class Transport
+{
 public:
-	Transport() = default;
-	virtual ~Transport() = default;
+    Transport() = default;
+    virtual ~Transport() = default;
 
-	// Reads |len| bytes into |data|. Returns the number of bytes actually
-	// read or -1 on error.
-	virtual ssize_t Read(void* data, size_t len) = 0;
+    // Reads |len| bytes into |data|. Returns the number of bytes actually
+    // read or -1 on error.
+    virtual ssize_t Read(void* data, size_t len) = 0;
 
-	// Writes |len| bytes from |data|. Returns the number of bytes actually
-	// written or -1 on error.
-	virtual ssize_t Write(const void* data, size_t len) = 0;
+    // Writes |len| bytes from |data|. Returns the number of bytes actually
+    // written or -1 on error.
+    virtual ssize_t Write(const void* data, size_t len) = 0;
 
-	// Reads or Writes |len| bytes from/to data. Returns the number of bytes actually
-	// read or written or -1 on error
-	virtual ssize_t ControlIO(bool is_in, void *setup, void* data, size_t len) = 0;
+    // Reads or Writes |len| bytes from/to data. Returns the number of bytes actually
+    // read or written or -1 on error
+    virtual ssize_t ControlIO(bool is_in, void *setup, void* data, size_t len) = 0;
 
-	// Closes the underlying transport. Returns 0 on success.
-	virtual int Close() = 0;
+    // Closes the underlying transport. Returns 0 on success.
+    virtual int Close() = 0;
 
-	// Blocks until the transport disconnects. Transports that don't support
-	// this will return immediately. Returns 0 on success.
-	virtual int WaitForDisconnect() { return 0; }
+    // Blocks until the transport disconnects. Transports that don't support
+    // this will return immediately. Returns 0 on success.
+    virtual int WaitForDisconnect() {
+        return 0;
+    }
 
-	// Waiting function
-	virtual void Wait(int ms) = 0;
+    // Waiting function
+    virtual void Wait(int ms) = 0;
 };
 
 #endif  // TRANSPORT_H_

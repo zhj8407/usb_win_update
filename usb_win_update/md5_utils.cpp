@@ -14,37 +14,37 @@
 
 int polyGenerateMD5Sum(const char *fileName, char *md5sum)
 {
-	size_t retValue = 0;
-	FILE *file_fp;
-	unsigned char md5[17] = { 0 };
-	MD5_CTX md5_ctx;
+    size_t retValue = 0;
+    FILE *file_fp;
+    unsigned char md5[17] = { 0 };
+    MD5_CTX md5_ctx;
 
     file_fp = fopen(fileName, "rb");
 
-	if (file_fp == NULL)
-		return -1;
+    if (file_fp == NULL)
+        return -1;
 
-	unsigned char* pData = (unsigned char*)malloc(FILE_READ_BUFFER_SIZE);
+    unsigned char* pData = (unsigned char*)malloc(FILE_READ_BUFFER_SIZE);
 
-	if (pData == NULL) {
-		fprintf(stderr, "Failed to allocate the buffer\n");
-		return -2;
-	}
+    if (pData == NULL) {
+        fprintf(stderr, "Failed to allocate the buffer\n");
+        return -2;
+    }
 
-	MD5_Init(&md5_ctx);
+    MD5_Init(&md5_ctx);
 
-	while ((retValue = fread(pData, sizeof(unsigned char), FILE_READ_BUFFER_SIZE, file_fp)) > 0)
-		MD5_Update(&md5_ctx, pData, retValue);
+    while ((retValue = fread(pData, sizeof(unsigned char), FILE_READ_BUFFER_SIZE, file_fp)) > 0)
+        MD5_Update(&md5_ctx, pData, retValue);
 
-	MD5_Final(md5, &md5_ctx);
+    MD5_Final(md5, &md5_ctx);
 
-	free(pData);
-	fclose(file_fp);
+    free(pData);
+    fclose(file_fp);
 
-	int i = 0;
+    int i = 0;
 
-	for (; i < MD5_LENGTH; i++)
-		snprintf(md5sum + 2 * i, 4, "%02x", md5[i]);
+    for (; i < MD5_LENGTH; i++)
+        snprintf(md5sum + 2 * i, 4, "%02x", md5[i]);
 
-	return 0;
+    return 0;
 }

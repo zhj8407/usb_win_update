@@ -34,25 +34,25 @@
 #include "transport.h"
 
 struct usb_ifc_info {
-	/* from device descriptor */
-	unsigned short dev_vendor;
-	unsigned short dev_product;
+    /* from device descriptor */
+    unsigned short dev_vendor;
+    unsigned short dev_product;
 
-	unsigned char dev_class;
-	unsigned char dev_subclass;
-	unsigned char dev_protocol;
+    unsigned char dev_class;
+    unsigned char dev_subclass;
+    unsigned char dev_protocol;
 
-	unsigned char ifc_class;
-	unsigned char ifc_subclass;
-	unsigned char ifc_protocol;
+    unsigned char ifc_class;
+    unsigned char ifc_subclass;
+    unsigned char ifc_protocol;
 
-	unsigned char has_bulk_in;
-	unsigned char has_bulk_out;
+    unsigned char has_bulk_in;
+    unsigned char has_bulk_out;
 
-	unsigned char writable;
+    unsigned char writable;
 
-	char serial_number[256];
-	char device_path[256];
+    char serial_number[256];
+    char device_path[256];
 };
 
 typedef int(*ifc_match_func)(usb_ifc_info *ifc);
