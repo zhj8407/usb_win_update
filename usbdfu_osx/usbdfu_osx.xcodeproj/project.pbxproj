@@ -1,0 +1,282 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		9748C5CD1E12DC6E00DC88D6 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9748C5C51E12DC6E00DC88D6 /* main.cpp */; };
+		9748C5CE1E12DC6E00DC88D6 /* md5_utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9748C5C61E12DC6E00DC88D6 /* md5_utils.cpp */; };
+		9748C5CF1E12DC6E00DC88D6 /* plcm_dfu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9748C5C81E12DC6E00DC88D6 /* plcm_dfu.cpp */; };
+		9748C5D01E12DC6E00DC88D6 /* usb_osx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9748C5CB1E12DC6E00DC88D6 /* usb_osx.cpp */; };
+		9748C5D31E12DCAF00DC88D6 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9748C5D21E12DCAF00DC88D6 /* CoreFoundation.framework */; };
+		9748C5D51E12DCB900DC88D6 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9748C5D41E12DCB900DC88D6 /* IOKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		9748C5AA1E12CAFF00DC88D6 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		9748C5AC1E12CAFF00DC88D6 /* usbdfu_osx */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = usbdfu_osx; sourceTree = BUILT_PRODUCTS_DIR; };
+		9748C5C51E12DC6E00DC88D6 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../usb_win_update/main.cpp; sourceTree = "<group>"; };
+		9748C5C61E12DC6E00DC88D6 /* md5_utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = md5_utils.cpp; path = ../usb_win_update/md5_utils.cpp; sourceTree = "<group>"; };
+		9748C5C71E12DC6E00DC88D6 /* md5_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = md5_utils.h; path = ../usb_win_update/md5_utils.h; sourceTree = "<group>"; };
+		9748C5C81E12DC6E00DC88D6 /* plcm_dfu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = plcm_dfu.cpp; path = ../usb_win_update/plcm_dfu.cpp; sourceTree = "<group>"; };
+		9748C5C91E12DC6E00DC88D6 /* plcm_dfu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = plcm_dfu.h; path = ../usb_win_update/plcm_dfu.h; sourceTree = "<group>"; };
+		9748C5CA1E12DC6E00DC88D6 /* stdafx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stdafx.h; path = ../usb_win_update/stdafx.h; sourceTree = "<group>"; };
+		9748C5CB1E12DC6E00DC88D6 /* usb_osx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = usb_osx.cpp; path = ../usb_win_update/usb_osx.cpp; sourceTree = "<group>"; };
+		9748C5CC1E12DC6E00DC88D6 /* usb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = usb.h; path = ../usb_win_update/usb.h; sourceTree = "<group>"; };
+		9748C5D21E12DCAF00DC88D6 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		9748C5D41E12DCB900DC88D6 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9748C5A91E12CAFF00DC88D6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9748C5D51E12DCB900DC88D6 /* IOKit.framework in Frameworks */,
+				9748C5D31E12DCAF00DC88D6 /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		9748C5A31E12CAFF00DC88D6 = {
+			isa = PBXGroup;
+			children = (
+				9748C5C51E12DC6E00DC88D6 /* main.cpp */,
+				9748C5C61E12DC6E00DC88D6 /* md5_utils.cpp */,
+				9748C5C71E12DC6E00DC88D6 /* md5_utils.h */,
+				9748C5C81E12DC6E00DC88D6 /* plcm_dfu.cpp */,
+				9748C5C91E12DC6E00DC88D6 /* plcm_dfu.h */,
+				9748C5CA1E12DC6E00DC88D6 /* stdafx.h */,
+				9748C5CB1E12DC6E00DC88D6 /* usb_osx.cpp */,
+				9748C5CC1E12DC6E00DC88D6 /* usb.h */,
+				9748C5AD1E12CAFF00DC88D6 /* Products */,
+				9748C5D11E12DCAF00DC88D6 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		9748C5AD1E12CAFF00DC88D6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9748C5AC1E12CAFF00DC88D6 /* usbdfu_osx */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9748C5D11E12DCAF00DC88D6 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				9748C5D41E12DCB900DC88D6 /* IOKit.framework */,
+				9748C5D21E12DCAF00DC88D6 /* CoreFoundation.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9748C5AB1E12CAFF00DC88D6 /* usbdfu_osx */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9748C5B31E12CAFF00DC88D6 /* Build configuration list for PBXNativeTarget "usbdfu_osx" */;
+			buildPhases = (
+				9748C5A81E12CAFF00DC88D6 /* Sources */,
+				9748C5A91E12CAFF00DC88D6 /* Frameworks */,
+				9748C5AA1E12CAFF00DC88D6 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = usbdfu_osx;
+			productName = usbdfu;
+			productReference = 9748C5AC1E12CAFF00DC88D6 /* usbdfu_osx */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9748C5A41E12CAFF00DC88D6 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0820;
+				ORGANIZATIONNAME = "Jerry Zhang";
+				TargetAttributes = {
+					9748C5AB1E12CAFF00DC88D6 = {
+						CreatedOnToolsVersion = 8.2.1;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 9748C5A71E12CAFF00DC88D6 /* Build configuration list for PBXProject "usbdfu_osx" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 9748C5A31E12CAFF00DC88D6;
+			productRefGroup = 9748C5AD1E12CAFF00DC88D6 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9748C5AB1E12CAFF00DC88D6 /* usbdfu_osx */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9748C5A81E12CAFF00DC88D6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9748C5CF1E12DC6E00DC88D6 /* plcm_dfu.cpp in Sources */,
+				9748C5CE1E12DC6E00DC88D6 /* md5_utils.cpp in Sources */,
+				9748C5CD1E12DC6E00DC88D6 /* main.cpp in Sources */,
+				9748C5D01E12DC6E00DC88D6 /* usb_osx.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		9748C5B11E12CAFF00DC88D6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		9748C5B21E12CAFF00DC88D6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		9748C5B41E12CAFF00DC88D6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		9748C5B51E12CAFF00DC88D6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9748C5A71E12CAFF00DC88D6 /* Build configuration list for PBXProject "usbdfu_osx" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9748C5B11E12CAFF00DC88D6 /* Debug */,
+				9748C5B21E12CAFF00DC88D6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9748C5B31E12CAFF00DC88D6 /* Build configuration list for PBXNativeTarget "usbdfu_osx" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9748C5B41E12CAFF00DC88D6 /* Debug */,
+				9748C5B51E12CAFF00DC88D6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9748C5A41E12CAFF00DC88D6 /* Project object */;
+}
