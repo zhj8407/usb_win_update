@@ -244,5 +244,13 @@ ModelManifest.xml
 # FAKE - F# Make
 .fake/
 
+# Ignore the build-output on Linux
 *.o
 dfu_tool
+
+# Ignore the build-output on Mac OS X
+**/project.xcworkspace/
+**/xcuserdata/
+tags
+.tags
+.tags*

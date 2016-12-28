@@ -159,7 +159,7 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
     return 0;
 }
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__APPLE__)
 #define POSITION(x) x
 #else
 #define POSITION(x) x.__pos

@@ -267,5 +267,9 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
+    transport->Close();
+
+    delete transport;
+
     return 0;
 }

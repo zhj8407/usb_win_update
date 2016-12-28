@@ -539,7 +539,7 @@ ssize_t LinuxUsbTransport::ControlIO(bool is_in, void *setup, void *data, size_t
     memcpy(&ctrl, setup, sizeof(ctrl));
 
     // Set the bRequestType
-    ctrl.bRequestType = USB_TYPE_STANDARD | USB_RECIP_INTERFACE;
+    ctrl.bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE;
     ctrl.bRequestType |= (is_in ? USB_DIR_IN : USB_DIR_OUT);
     ctrl.wIndex = ((ctrl.wIndex & 0xFF00) | (handle_->intf_num & 0xFF));
     ctrl.wLength = (unsigned short)len;
