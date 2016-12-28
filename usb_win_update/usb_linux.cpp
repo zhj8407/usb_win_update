@@ -97,6 +97,7 @@ public:
     ssize_t Write(const void* data, size_t len) override;
     ssize_t ControlIO(bool is_in, void *setup, void *data, size_t len) override;
     int Close() override;
+    int Reset(bool is_in) override;
     int WaitForDisconnect() override;
     void Wait(int ms) override;
 
@@ -570,6 +571,29 @@ int LinuxUsbTransport::Close()
     if (fd >= 0) {
         close(fd);
         DBG("[ usb closed %d ]\n", fd);
+    }
+
+    return 0;
+}
+
+int LinuxUsbTransport::Reset(bool is_in)
+{
+    int ret;
+    unsigned int ep = 0;
+
+    if (is_in)
+        ep = handle_->ep_in;
+    else
+        ep = handle_->ep_out;
+
+    if (!ep)
+        return -1;
+
+    ret = ioctl(handle_->desc, USBDEVFS_CLEAR_HALT, &ep);
+    if (ret < 0) {
+        DBG("[ usb reset ep(%d). ret: %d, errno = %d (%s) ]\n",
+            ep, ret, errno, strerror(errno));
+        return -1;
     }
 
     return 0;

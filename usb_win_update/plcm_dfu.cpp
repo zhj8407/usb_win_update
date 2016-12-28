@@ -273,6 +273,9 @@ int polySendImageFile(Transport *transport, const char *fileName,
         return -5;
     }
 
+    //Reset the bulk out ep
+    transport->Reset(false);
+
     //Set the pos to start
     fseek(fp, 0, SEEK_SET);
 

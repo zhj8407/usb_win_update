@@ -75,6 +75,7 @@ class OsxUsbTransport : public Transport {
     ssize_t Write(const void* data, size_t len) override;
     ssize_t ControlIO(bool is_in, void *setup, void* data, size_t len) override;
     int Close() override;
+    int Reset(bool is_in) override;
     void Wait(int ms) override;
 
   private:
@@ -498,18 +499,50 @@ Transport* usb_open(ifc_match_func callback) {
 
 int OsxUsbTransport::Close() {
 
-    if (handle_ == NULL) {
+    if (handle_ == nullptr) {
         return -1;
     }
 
-    if (handle_->dev != NULL) {
+    if (handle_->dev != nullptr) {
         (*handle_->dev)->USBDeviceClose(handle_->dev);
         (*handle_->dev)->ResetDevice(handle_->dev);
     }
 
-    if (handle_->interface == NULL) {
+    if (handle_->interface == nullptr) {
         (*handle_->interface)->USBInterfaceClose(handle_->interface);
         (*handle_->interface)->Release(handle_->interface);
+    }
+
+    return 0;
+}
+
+int OsxUsbTransport::Reset(bool is_in) {
+    IOReturn result;
+
+    if (handle_ == nullptr) {
+        return -1;
+    }
+
+    if (handle_->interface == nullptr) {
+        ERR("Reset: interface was null\n");
+        return -1;
+    }
+
+    if (is_in && handle_->bulkIn != 0) {
+        result = (*handle_->interface)->ClearPipeStall(handle_->interface, handle_->bulkIn);
+        if (result != kIOReturnSuccess) {
+            ERR("Rest: Failed to reset the pipe (ep: %d). Result: %d\n",
+                handle_->bulkIn, (int)result);
+            return -1;
+        }
+    }
+    else if (!is_in && handle_->bulkOut != 0) {
+        result = (*handle_->interface)->ClearPipeStall(handle_->interface, handle_->bulkOut);
+        if (result != kIOReturnSuccess) {
+            ERR("Rest: Failed to reset the pipe (ep: %d). Result: %d\n",
+                handle_->bulkOut, (int)result);
+            return -1;
+        }
     }
 
     return 0;
@@ -569,9 +602,9 @@ ssize_t OsxUsbTransport::Write(const void* data, size_t len) {
         return -1;
     }
 
-#if 0
+#if 1
     result = (*handle_->interface)->WritePipe(
-            handle_->interface, handle_->bulkOut, (void *)data, len);
+            handle_->interface, handle_->bulkOut, (void *)data, (UInt32)len);
 #else
     /* Attempt to work around crashes in the USB driver that may be caused
      * by trying to write too much data at once.  The kernel IOCopyMapper
