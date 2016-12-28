@@ -28,6 +28,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		97133DC01E1366F000C07015 /* transport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = transport.h; path = ../usb_win_update/transport.h; sourceTree = "<group>"; };
 		9748C5AC1E12CAFF00DC88D6 /* usbdfu_osx */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = usbdfu_osx; sourceTree = BUILT_PRODUCTS_DIR; };
 		9748C5C51E12DC6E00DC88D6 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../usb_win_update/main.cpp; sourceTree = "<group>"; };
 		9748C5C61E12DC6E00DC88D6 /* md5_utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = md5_utils.cpp; path = ../usb_win_update/md5_utils.cpp; sourceTree = "<group>"; };
@@ -57,6 +58,7 @@
 		9748C5A31E12CAFF00DC88D6 = {
 			isa = PBXGroup;
 			children = (
+				97133DC01E1366F000C07015 /* transport.h */,
 				9748C5C51E12DC6E00DC88D6 /* main.cpp */,
 				9748C5C61E12DC6E00DC88D6 /* md5_utils.cpp */,
 				9748C5C71E12DC6E00DC88D6 /* md5_utils.h */,

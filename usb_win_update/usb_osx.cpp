@@ -61,6 +61,7 @@ struct usb_handle
 
     UInt8 bulkIn;
     UInt8 bulkOut;
+    IOUSBDeviceInterface182 **dev;
     IOUSBInterfaceInterface190 **interface;
     unsigned int zero_mask;
 };
@@ -235,6 +236,7 @@ static int try_interfaces(IOUSBDeviceInterface182 **dev, usb_handle *handle) {
         }
 
         if (handle->callback(&handle->info) == 0) {
+            handle->dev = dev;
             handle->interface = interface;
             handle->success = 1;
 
@@ -389,6 +391,9 @@ static int try_device(io_service_t device, usb_handle *handle) {
         goto error;
     }
 
+    // Do not close the device here.
+    return 0;
+
     out:
 
     (*dev)->USBDeviceClose(dev);
@@ -492,7 +497,21 @@ Transport* usb_open(ifc_match_func callback) {
 }
 
 int OsxUsbTransport::Close() {
-    /* TODO: Something better here? */
+
+    if (handle_ == NULL) {
+        return -1;
+    }
+
+    if (handle_->dev != NULL) {
+        (*handle_->dev)->USBDeviceClose(handle_->dev);
+        (*handle_->dev)->ResetDevice(handle_->dev);
+    }
+
+    if (handle_->interface == NULL) {
+        (*handle_->interface)->USBInterfaceClose(handle_->interface);
+        (*handle_->interface)->Release(handle_->interface);
+    }
+
     return 0;
 }
 
@@ -591,7 +610,54 @@ ssize_t OsxUsbTransport::Write(const void* data, size_t len) {
 }
 
 ssize_t OsxUsbTransport::ControlIO(bool is_in, void *setup, void *data, size_t len) {
-    return -1;
+    IOUSBDevRequest ctrl_req;
+    IOReturn result;
+    UInt8 intf_num;
+
+    if (handle_ == NULL) {
+        return -1;
+    }
+
+    if (handle_->dev == NULL) {
+        ERR("ControlIO Device was null\n");
+        return -1;
+    }
+
+    if (handle_->interface == NULL) {
+        ERR("ControlIO interface was null\n");
+        return -1;
+    }
+
+    // Copy the setup packet
+    memcpy(&ctrl_req, setup, sizeof(IOUSBDevRequest));
+
+    // Get the interface number
+    result = (*handle_->interface)->GetInterfaceNumber(handle_->interface, &intf_num);
+    if (result != kIOReturnSuccess) {
+        ERR("ControIO: Failed to get the interface number\n");
+        return -1;
+    }
+
+    // Fill the setup packet
+    if (is_in)
+        ctrl_req.bmRequestType = USBmakebmRequestType(kUSBIn, kUSBVendor, kUSBInterface);
+    else
+        ctrl_req.bmRequestType = USBmakebmRequestType(kUSBOut, kUSBVendor, kUSBInterface);
+
+    ctrl_req.wIndex = ((ctrl_req.wIndex & 0xFF00) | intf_num);
+    ctrl_req.wLength = (UInt16) len;
+    ctrl_req.pData = data;
+
+    result = (*handle_->dev)->DeviceRequest(handle_->dev, &ctrl_req);
+
+    if (result != kIOReturnSuccess) {
+        if (result == kIOReturnTimeout)
+            return -2;
+        ERR("ControlIO: Failed to issue the control request. error: %d\n", (int)result);
+        return -1;
+    }
+
+    return ctrl_req.wLenDone;
 }
 
 void OsxUsbTransport::Wait(int ms) {
