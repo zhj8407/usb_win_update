@@ -142,7 +142,7 @@ int traverse_directory(const char *dirName,
 #endif
             (*totalCount)++;
 
-            if ((ret = callback(transport, pattern, swVersion, fUpdate, fSync, fUpdate)) == 0) {
+            if ((ret = callback(transport, pattern, swVersion, fUpdate, fSync, fForced)) == 0) {
                 count++;
             } else {
                 fprintf(stderr, "Failed to transfer file: \t%s/%s. ret is %d\n",
