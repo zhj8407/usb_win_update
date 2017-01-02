@@ -167,9 +167,9 @@ int main(int argc, char *argv[])
     }
 
 #if 1
-    //char *base_dir = "c:\\aaa";
     char const *base_dir = "C:\\Users\\test\\Downloads\\data";
-    //char *base_dir = "C:\\Python27amd64";
+    //char const *base_dir = "/Users/jiezhang/patches";
+    //char const *base_dir = "/Volumes/Untitled/image";
 
     bool fSync = true;
     bool fUpdate = false;

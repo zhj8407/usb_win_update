@@ -120,7 +120,7 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
     ssize_t ret = 0;
 
     do {
-        transport->Wait(1000);
+        transport->Wait(200);
 
         //Try to do sync
         memset(wup_status, 0x00, sizeof(struct wup_status));
@@ -348,6 +348,10 @@ int polySendImageFile(Transport *transport, const char *fileName,
     printf("total_len is %zu\n", total_len);
 #endif
     fclose(fp);
+
+    //Workaround for MCCI
+    //Send the short packet to notify the end of transfer
+    transport->Write(NULL, 0);
 
     ret = polySyncData(transport, &wup_status);
 

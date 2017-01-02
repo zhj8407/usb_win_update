@@ -551,10 +551,6 @@ ssize_t OsxUsbTransport::Read(void* data, size_t len) {
 ssize_t OsxUsbTransport::Write(const void* data, size_t len) {
     IOReturn result;
 
-    if (len == 0) {
-        return 0;
-    }
-
     if (handle_ == NULL) {
         return -1;
     }
@@ -570,8 +566,8 @@ ssize_t OsxUsbTransport::Write(const void* data, size_t len) {
     }
 
 #if 0
-    result = (*handle_->interface)->WritePipe(
-            handle_->interface, handle_->bulkOut, (void *)data, len);
+    result = (*handle_->interface)->WritePipeTO(
+            handle_->interface, handle_->bulkOut, (void *)data, (UInt32)len, 0, 5000);
 #else
     /* Attempt to work around crashes in the USB driver that may be caused
      * by trying to write too much data at once.  The kernel IOCopyMapper
@@ -596,8 +592,8 @@ ssize_t OsxUsbTransport::Write(const void* data, size_t len) {
     if ((result == 0) && (handle_->zero_mask)) {
         /* we need 0-markers and our transfer */
         if(!(len & handle_->zero_mask)) {
-            result = (*handle_->interface)->WritePipe(
-                    handle_->interface, handle_->bulkOut, (void *)data, 0);
+            result = (*handle_->interface)->WritePipeTO(
+                    handle_->interface, handle_->bulkOut, (void *)data, 0, 0, 500);
         }
     }
 

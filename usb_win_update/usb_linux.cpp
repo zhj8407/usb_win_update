@@ -442,6 +442,9 @@ ssize_t LinuxUsbTransport::Write(const void* _data, size_t len)
         return -1;
     }
 
+    if (len == 0)
+        return 0;
+
     do {
         int xfer;
         xfer = (len > MAX_USBFS_BULK_SIZE) ? MAX_USBFS_BULK_SIZE : len;
