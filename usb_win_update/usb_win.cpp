@@ -165,6 +165,9 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len)
     unsigned count = 0;
     int ret;
 
+    if (len == 0)
+        return 0;
+
     //fprintf(stderr, "usb_write %d\n", len);
     if (nullptr != handle_) {
         // Perform write
@@ -186,7 +189,6 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len)
 
             if (handle_->zero_mask && ((xfer & handle_->zero_mask) == 0)) {
                 //Send the ZLP
-#if 1
                 //fprintf(stdout, "Send the ZLP\n");
                 ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
                                            &written_zlp, time_out);
@@ -201,14 +203,6 @@ ssize_t WindowsUsbTransport::Write(const void* data, size_t len)
 
                     return -1;
                 }
-
-#else
-                ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
-                                           &written_zlp, time_out);
-                ret = AdbWriteEndpointSync(handle_->adb_write_pipe, const_cast<void*>(data), 0,
-                                           &written_zlp, time_out);
-#endif
-
             }
 
             count += written;
