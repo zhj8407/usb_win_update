@@ -159,6 +159,38 @@ static int polySyncData(Transport *transport, struct wup_status *wup_status)
     return 0;
 }
 
+static ssize_t polyCheckStatus(Transport *transfer, struct wup_status *wup_status)
+{
+    int retries = 0;
+    ssize_t ret = 0;
+
+    do {
+
+        memset(wup_status, 0x00, sizeof(struct wup_status));
+
+        ret = polySendControlInfo(transfer,
+                                  true,
+                                  PLCM_USB_REQUEST_GET_INFORMATION,
+                                  PLCM_USB_REQ_WUP_GETSTATUS,
+                                  wup_status,
+                                  sizeof(struct wup_status));
+
+        if (ret >= 0)
+            break;
+
+        /* Wait for 200 ms. */
+        transfer->Wait(200);
+
+    } while (retries++ < 5 && ret < 0);
+
+    if (ret < 0 || retries >= 5) {
+        fprintf(stderr, "Failed to get status in %d times retries.\n", retries);
+        return -1;
+    }
+
+    return 0;
+}
+
 #if defined(_WIN32) || defined(__APPLE__)
 #define POSITION(x) x
 #else
@@ -229,15 +261,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
             return -2;
         }
 
-        // Check the status
-        memset(&wup_status, 0x00, sizeof(struct wup_status));
-
-        read_len = polySendControlInfo(transport,
-                                       true,
-                                       PLCM_USB_REQUEST_GET_INFORMATION,
-                                       PLCM_USB_REQ_WUP_GETSTATUS,
-                                       &wup_status,
-                                       sizeof(struct wup_status));
+        read_len = polyCheckStatus(transport, &wup_status);
 
         if (read_len < 0) {
             fprintf(stderr, "Failed to read the status\n");
@@ -392,15 +416,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
         return -12;
     }
 
-    // Check the status
-    memset(&wup_status, 0x00, sizeof(struct wup_status));
-
-    read_len = polySendControlInfo(transport,
-                                   true,
-                                   PLCM_USB_REQUEST_GET_INFORMATION,
-                                   PLCM_USB_REQ_WUP_GETSTATUS,
-                                   &wup_status,
-                                   sizeof(struct wup_status));
+    read_len = polyCheckStatus(transport, &wup_status);
 
     if (read_len < 0) {
         fprintf(stderr, "Failed to read the status\n");
@@ -430,17 +446,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
         return -14;
     }
 
-    transport->Wait(5000);
-
-    // Check the status
-    memset(&wup_status, 0x00, sizeof(struct wup_status));
-
-    read_len = polySendControlInfo(transport,
-                                   true,
-                                   PLCM_USB_REQUEST_GET_INFORMATION,
-                                   PLCM_USB_REQ_WUP_GETSTATUS,
-                                   &wup_status,
-                                   sizeof(struct wup_status));
+    read_len = polyCheckStatus(transport, &wup_status);
 
     if (read_len < 0) {
         fprintf(stderr, "Failed to read the status\n");

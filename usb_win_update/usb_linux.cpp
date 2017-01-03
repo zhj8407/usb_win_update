@@ -452,7 +452,7 @@ ssize_t LinuxUsbTransport::Write(const void* _data, size_t len)
         bulk.ep = handle_->ep_out;
         bulk.len = xfer;
         bulk.data = data;
-        bulk.timeout = 0;
+        bulk.timeout = 5000;    /* in milliseconds */
 
         n = ioctl(handle_->desc, USBDEVFS_BULK, &bulk);
 
@@ -473,7 +473,7 @@ ssize_t LinuxUsbTransport::Write(const void* _data, size_t len)
         bulk.ep = handle_->ep_out;
         bulk.len = 0;
         bulk.data = data;
-        bulk.timeout = 0;
+        bulk.timeout = 500;    /* in milliseconds */
 
         n = ioctl(handle_->desc, USBDEVFS_BULK, &bulk);
 
