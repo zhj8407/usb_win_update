@@ -1,0 +1,27 @@
+This tool is running on the USB host for verifing the firmware updating through
+USB. It can support multi_platform.
+
+1 Windows
+The Visual Studio 2015 and Windows Driver Kit should be installed for compiling.
+We can build them by either import the project using the IDE or from the command
+line. This application depends on some other external libraries.
+    a. AdbWinApi.dll and AdbWinUsbApi.dll
+       Both of them come from the Android Open Source Project (AOSP) with Apache
+       License. They encapsulate the WinUSB API to implement the USB Read and Write
+       functions. I also made some changes in them for supporting the USB Control
+       Transfer. The source code has been placed outside in another folder.
+    b. libeay32.dll and ssleay32.dll
+       These are the libraries of OpenSSL. I use them to calculate the MD5 Sum of
+       the image file.
+
+2. Linux
+A Makefile is placed in directory "./usbdfu_linux". Typing "make" in the command
+shell can generate the tool of Linux version.
+
+To use it by non-root users, we need to copy the udev rules file
+"./usbdfu_linux/51-plcmdevices.rules" to "/etc/udev/rules.d/". And then change the 
+mode by "sudo chmod a+r /etc/udev/rules.d/51-plcmdevices.rules". Finally restart the
+udev service by "service restart udev".
+
+3. Mac OS X
+A XCode project file is placed in directory "./usbdfu_osx". Open it by the XCode.
