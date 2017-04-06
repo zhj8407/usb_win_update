@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
     }
 
 #if 1
-    char const *base_dir = "C:\\Users\\test\\Downloads\\data";
+    char const *base_dir = "D:\\images";
     //char const *base_dir = "/Users/jiezhang/patches";
     //char const *base_dir = "/Volumes/Untitled/image";
 
@@ -175,27 +175,31 @@ int main(int argc, char *argv[])
     bool fUpdate = false;
     bool fForced = true;
 
-    char const *version = "1.3.0-110176";
+    char const *version = "1.3.0-110230";
 
     if (argc < 2) {
         fprintf(stderr, "Invaild argument!\n");
         fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] [ForceFlag(1)]"
-                " [UpdateFlag(0)] [VersionNumber(1.3.0-110176)]\n");
+                " [UpdateFlag(0)] [SyncFlag(1)] [VersionNumber(1.3.0-110230)]\n");
         fprintf(stderr, "Use the default directory: %s\n", base_dir);
     } else {
         base_dir = argv[1];
     }
 
     if (argc >= 3) {
-        fForced = atoi(argv[2]) != 0;
+        fForced = (atoi(argv[2]) != 0);
     }
 
     if (argc >= 4) {
-        fUpdate = atoi(argv[3]) != 0;
+        fUpdate = (atoi(argv[3]) != 0);
     }
 
     if (argc >= 5) {
-        version = argv[4];
+        fSync = (atoi(argv[4]) != 0);
+    }
+
+    if (argc >= 6) {
+        version = argv[5];
     }
 
     printf("Sync mode: %d, Update mode: %d, Forced: %d, Version: %s\n",
