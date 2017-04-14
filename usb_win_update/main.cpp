@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#include <memory>
+
 #include "usb.h"
 #include "plcm_dfu.h"
 
@@ -157,17 +159,27 @@ int traverse_directory(const char *dirName,
 #endif
 }
 
+void close_transport(Transport *transport)
+{
+    if (transport) {
+        transport->Close();
+        delete transport;
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    Transport *transport = usb_open(on_plcm_dfu_device_found);
+    Transport *t = usb_open(on_plcm_dfu_device_found);
 
-    if (transport == NULL) {
+    if (t == NULL) {
         fprintf(stderr, "Failed to find the available device\n");
         return -1;
     }
 
+    std::unique_ptr<Transport, decltype(close_transport)*> transport(t, close_transport);
+
 #if 1
-    char const *base_dir = "D:\\images";
+    char const *base_dir = "F:\\images";
     //char const *base_dir = "/Users/jiezhang/patches";
     //char const *base_dir = "/Volumes/Untitled/image";
 
@@ -215,7 +227,7 @@ int main(int argc, char *argv[])
 
         int file_count = traverse_directory(base_dir,
                                             polySendImageFile,
-                                            transport,
+                                            transport.get(),
                                             version,
                                             fUpdate,
                                             fSync,
@@ -270,10 +282,6 @@ int main(int argc, char *argv[])
 
 #endif
 #endif
-
-    transport->Close();
-
-    delete transport;
 
     return 0;
 }
