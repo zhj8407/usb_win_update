@@ -284,10 +284,10 @@ int polySendImageFile(Transport *transport, const char *fileName,
                 return -4;
             }
 
-            transport->Wait(500);
+            transport->Wait(200);
         }
 
-    } while (wup_status.bStatus == WUP_STATUS_errSTATE && (retries++) < 1);
+    } while (wup_status.bStatus == WUP_STATUS_errSTATE && (retries++) < 4);
 
     if (wup_status.bStatus != WUP_STATUS_OK &&
             wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
