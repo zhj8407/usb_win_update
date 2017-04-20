@@ -375,25 +375,26 @@ int polySendImageFile(Transport *transport, const char *fileName,
 #endif
     fclose(fp);
 
-    //Workaround for MCCI
-    //Send the short packet to notify the end of transfer
-    transport->Write(NULL, 0);
+    if (!fSync || (total_len % WUP_SYNC_BLOCK_SIZE)) {
+        //Workaround for MCCI
+        //Send the short packet to notify the end of transfer
+        transport->Write(NULL, 0);
 
-    ret = polySyncData(transport, &wup_status);
+        ret = polySyncData(transport, &wup_status);
 
-    if (ret < 0) {
-        fprintf(stderr, "Failed to do sync\n");
-        return -9;
+        if (ret < 0) {
+            fprintf(stderr, "Failed to do sync\n");
+            return -9;
+        }
+
+        if (wup_status.bStatus != WUP_STATUS_OK ||
+                wup_status.u.dwWrittenBytes != total_len) {
+            fprintf(stderr, "Something wrong in the transferring, error is (%d)"
+                    " writtenBytes: %d\n",
+                    wup_status.bStatus, wup_status.u.dwWrittenBytes);
+            return -10;
+        }
     }
-
-    if (wup_status.bStatus != WUP_STATUS_OK ||
-            wup_status.u.dwWrittenBytes != total_len) {
-        fprintf(stderr, "Something wrong in the transferring, error is (%d)"
-                " writtenBytes: %d\n",
-                wup_status.bStatus, wup_status.u.dwWrittenBytes);
-        return -10;
-    }
-
     //Try to do integration check.
 
     char md5_sum[40];
