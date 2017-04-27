@@ -47,14 +47,51 @@ int on_plcm_dfu_device_found(usb_ifc_info *info)
     return -1;
 }
 
+void progress_show(const char *fileName,
+    ssize_t total_bytes,
+    ssize_t written_bytes,
+    bool done,
+    bool error)
+{
+    static char stored_FileName[128] = { 0 };
+    static int count = 0;
+    float percent;
+
+    if (strncmp(fileName, stored_FileName, sizeof(stored_FileName))) {
+        strncpy(stored_FileName, fileName, sizeof(stored_FileName));
+        printf("\nCount   : %d\n", ++count);
+        printf("File Name: %s\n", fileName);
+        printf("File Size: %ld\n", total_bytes);
+    }
+
+    printf("\rProgress: [");
+    percent = (float)written_bytes / (float)total_bytes * 100;
+
+    for (int i = 0; i < 50; i++) {
+        if (i < (int)percent / 2)
+            printf("=");
+        else
+            printf(" ");
+    }
+
+    printf("] %.1f%%", percent);
+
+    if (done)
+        printf("  Done\n");
+
+    if (error)
+        printf("  Error\n");
+}
+
 int traverse_directory(const char *dirName,
-                       usb_file_transfer_func callback,
-                       Transport *transport,
-                       const char *swVersion,
-                       bool fUpdate,
-                       bool fSync,
-                       bool fForced,
-                       int *totalCount)
+    usb_file_transfer_func callback,
+    Transport *transport,
+    const char *swVersion,
+    bool fUpdate,
+    bool fSync,
+    bool fForced,
+    int buffer_size,
+    int *totalCount)
 {
 #if defined(_WIN32)
     struct _finddata_t file_find;
@@ -87,6 +124,7 @@ int traverse_directory(const char *dirName,
                                             fUpdate,
                                             fSync,
                                             fForced,
+                                            buffer_size,
                                             totalCount);
             } else {
 #if DEBUG_PRINT
@@ -94,7 +132,7 @@ int traverse_directory(const char *dirName,
 #endif
                 (*totalCount)++;
 
-                if ((ret = callback(transport, pattern, swVersion, fUpdate, fSync, fForced)) == 0) {
+                if ((ret = callback(transport, pattern, swVersion, buffer_size, fUpdate, fSync, fForced, progress_show)) == 0) {
                     count++;
                 } else {
                     fprintf(stderr, "Failed to transfer file: \t%s\\%s. ret is %d\n",
@@ -137,6 +175,7 @@ int traverse_directory(const char *dirName,
                                         fUpdate,
                                         fSync,
                                         fForced,
+                                        buffer_size,
                                         totalCount);
         } else if (de->d_type == DT_REG) {
 #if DEBUG_PRINT
@@ -144,7 +183,7 @@ int traverse_directory(const char *dirName,
 #endif
             (*totalCount)++;
 
-            if ((ret = callback(transport, pattern, swVersion, fUpdate, fSync, fForced)) == 0) {
+            if ((ret = callback(transport, pattern, swVersion, buffer_size, fUpdate, fSync, fForced, progress_show)) == 0) {
                 count++;
             } else {
                 fprintf(stderr, "Failed to transfer file: \t%s/%s. ret is %d\n",
@@ -183,6 +222,7 @@ int main(int argc, char *argv[])
     //char const *base_dir = "/Users/jiezhang/patches";
     //char const *base_dir = "/Volumes/Untitled/image";
 
+    int buffer_size = 16;   // KB
     bool fSync = true;
     bool fUpdate = false;
     bool fForced = true;
@@ -191,7 +231,7 @@ int main(int argc, char *argv[])
 
     if (argc < 2) {
         fprintf(stderr, "Invaild argument!\n");
-        fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] [ForceFlag(1)]"
+        fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] [BufferSize(16)] [ForceFlag(1)]"
                 " [UpdateFlag(0)] [SyncFlag(1)] [VersionNumber(1.3.0-110230)]\n");
         fprintf(stderr, "Use the default directory: %s\n", base_dir);
     } else {
@@ -199,23 +239,30 @@ int main(int argc, char *argv[])
     }
 
     if (argc >= 3) {
-        fForced = (atoi(argv[2]) != 0);
+        buffer_size = atoi(argv[2]);
     }
 
     if (argc >= 4) {
-        fUpdate = (atoi(argv[3]) != 0);
+        fForced = (atoi(argv[3]) != 0);
     }
 
     if (argc >= 5) {
-        fSync = (atoi(argv[4]) != 0);
+        fUpdate = (atoi(argv[4]) != 0);
     }
 
     if (argc >= 6) {
-        version = argv[5];
+        fSync = (atoi(argv[5]) != 0);
     }
 
-    printf("Sync mode: %d, Update mode: %d, Forced: %d, Version: %s\n",
-           fSync, fUpdate, fForced, version);
+    if (argc >= 7) {
+        version = argv[6];
+    }
+
+    if (buffer_size > 1024)
+        buffer_size = 1024;
+
+    printf("Buffer size: %d KB, Sync mode: %d, Update mode: %d, Forced: %d, Version: %s\n",
+           buffer_size, fSync, fUpdate, fForced, version);
 
     int i = 0;
 
@@ -232,6 +279,7 @@ int main(int argc, char *argv[])
                                             fUpdate,
                                             fSync,
                                             fForced,
+                                            buffer_size,
                                             &total_file_count);
 
         printf("%d times test: total file count: %d, transferred count: %d\n",

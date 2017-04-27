@@ -198,13 +198,18 @@ static ssize_t polyCheckStatus(Transport *transfer, struct wup_status *wup_statu
 #endif
 
 int polySendImageFile(Transport *transport, const char *fileName,
-                      const char *swVersion, bool fUpdate = false,
-                      bool fSync = false, bool fForced = false)
+                      const char *swVersion, int buffer_size,
+                      bool fUpdate = false, bool fSync = false,
+                      bool fForced = false,
+                      progress_notify notify_callback = NULL)
 {
     FILE *fp;
 
     ssize_t read_len;
     ssize_t written_len;
+
+    ssize_t total_file_len;
+    size_t total_written_len = 0;
 
     ssize_t ret;
 
@@ -238,6 +243,8 @@ int polySendImageFile(Transport *transport, const char *fileName,
         fclose(fp);
         return -1;
     }
+
+    total_file_len = (ssize_t)(POSITION(ops));
 
     retries = 0;
 
@@ -304,7 +311,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 
     //Start the data transfer
     char *buf;
-    size_t buf_size = (1024 * 1024);
+    size_t buf_size = buffer_size * 1024;
 
     buf = (char *)malloc(buf_size);
 
@@ -313,8 +320,6 @@ int polySendImageFile(Transport *transport, const char *fileName,
         fclose(fp);
         return -6;
     }
-
-    size_t total_len = 0;
 
     size_t sync_block_remain = fSync ? WUP_SYNC_BLOCK_SIZE : (int)POSITION(ops) + 1;
 
@@ -339,13 +344,18 @@ int polySendImageFile(Transport *transport, const char *fileName,
         }
 
         sync_block_remain -= read_len;
-        total_len += written_len;
+        total_written_len += written_len;
+
+        if (notify_callback != NULL)
+            notify_callback(fileName, total_file_len, total_written_len, false, false);
 
         if (sync_block_remain == 0) {
             // Reach the sync point
             ret = polySyncData(transport, &wup_status);
 
             if (ret < 0) {
+                if (notify_callback != NULL)
+                    notify_callback(fileName, total_file_len, total_written_len, false, true);
                 fprintf(stderr, "Failed to sync data in transfer\n");
                 free(buf);
                 fclose(fp);
@@ -353,7 +363,9 @@ int polySendImageFile(Transport *transport, const char *fileName,
             }
 
             if (wup_status.bStatus != WUP_STATUS_OK ||
-                    wup_status.u.dwWrittenBytes != total_len) {
+                    wup_status.u.dwWrittenBytes != total_written_len) {
+                if (notify_callback != NULL)
+                    notify_callback(fileName, total_file_len, total_written_len, false, true);
                 fprintf(stderr, "Something wrong in the transferring, error is (%d)"
                         " BytesWritten: %u\n",
                         wup_status.bStatus, wup_status.u.dwWrittenBytes);
@@ -375,7 +387,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 #endif
     fclose(fp);
 
-    if (!fSync || (total_len % WUP_SYNC_BLOCK_SIZE)) {
+    if (!fSync || (total_written_len % WUP_SYNC_BLOCK_SIZE)) {
         //Workaround for MCCI
         //Send the short packet to notify the end of transfer
         transport->Write(NULL, 0);
@@ -383,18 +395,27 @@ int polySendImageFile(Transport *transport, const char *fileName,
         ret = polySyncData(transport, &wup_status);
 
         if (ret < 0) {
+            if (notify_callback != NULL)
+                notify_callback(fileName, total_file_len, total_written_len, false, true);
             fprintf(stderr, "Failed to do sync\n");
             return -9;
         }
 
         if (wup_status.bStatus != WUP_STATUS_OK ||
-                wup_status.u.dwWrittenBytes != total_len) {
+                wup_status.u.dwWrittenBytes != total_written_len) {
+            if (notify_callback != NULL)
+                notify_callback(fileName, total_file_len, total_written_len, false, true);
             fprintf(stderr, "Something wrong in the transferring, error is (%d)"
                     " writtenBytes: %d\n",
                     wup_status.bStatus, wup_status.u.dwWrittenBytes);
             return -10;
         }
     }
+
+    //Transfer Done
+    if (notify_callback != NULL)
+        notify_callback(fileName, total_file_len, total_written_len, true, false);
+
     //Try to do integration check.
 
     char md5_sum[40];
