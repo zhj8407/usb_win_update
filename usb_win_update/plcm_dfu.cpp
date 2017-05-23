@@ -84,7 +84,9 @@ struct wup_dnload_info {
 #define WUP_STATUS_errNOTDONE           0x07
 #define WUP_STATUS_errINVAL             0x08
 #define WUP_STATUS_errTRANS             0x09
-#define WUP_STATUS_errUNKNOWN           0x0A
+#define WUP_STATUS_errBLOCK             0x0A
+#define WUP_STATUS_errBUSY              0x0B
+#define WUP_STATUS_errUNKNOWN           0x0C
 
 enum wup_state {
     WUP_STATE_dfuDETACHED = 0,
@@ -97,7 +99,7 @@ enum wup_state {
     WUP_STATE_dfuERROR = 7,
 };
 
-#define WUP_SYNC_BLOCK_SIZE		(64 * 1024 * 1024)
+#define WUP_SYNC_BLOCK_SIZE		(4 * 1024 * 1024)
 
 static ssize_t polySendControlInfo(Transport *transport, bool is_in_direction,
                                    unsigned char request, unsigned short value, void *data, size_t len)
@@ -296,7 +298,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 
     } while (wup_status.bStatus == WUP_STATUS_errSTATE && (retries++) < 4);
 
-    if (wup_status.bStatus != WUP_STATUS_OK &&
+    if (wup_status.bStatus != WUP_STATUS_OK ||
             wup_status.bState != WUP_STATE_dfuDNLOAD_IDLE) {
         fprintf(stderr, "Failed to set the download info."
                 " Wrong status(%d) or state(%d)\n",
