@@ -85,6 +85,7 @@ struct wup_dnload_info {
 #define WUP_STATUS_errINVAL             0x08
 #define WUP_STATUS_errTRANS             0x09
 #define WUP_STATUS_errBLOCK             0x0A
+#define WUP_STATUS_errBUSY              0x0B
 #define WUP_STATUS_errFORBID            0x0C
 #define WUP_STATUS_errUNKNOWN           0x0D
 
