@@ -12,6 +12,7 @@
 #include "plcm_dfu.h"
 #include "usb.h"
 #include "md5_utils.h"
+#include "time_utils.h"
 
 #define DEBUG_PRINT 0
 
@@ -219,6 +220,8 @@ int polySendImageFile(Transport *transport, const char *fileName,
     struct wup_status wup_status;
 
     struct wup_dnload_info dnload_info;
+    struct wup_calendar_time c_time;
+
     int retries = 0;
 
     if (transport == NULL)
@@ -257,6 +260,13 @@ int polySendImageFile(Transport *transport, const char *fileName,
         dnload_info.dwImageSize = (unsigned int)(POSITION(ops));
         dnload_info.dwSyncBlockSize = fSync ? WUP_SYNC_BLOCK_SIZE : 0;    /* Do not sync in the transfer. */
         dnload_info.bForced = fForced ? 1 : 0;
+        //Got Host's current time.
+        wup_get_calendar_time(&c_time);
+        printf("Transfer Time: %d-%d-%d %d:%d:%d GMT %d Daylight %d\n",
+            c_time.wYear, c_time.wMonth, c_time.wDay,
+            c_time.wHour, c_time.wMinute, c_time.wSecond,
+            c_time.dwTimeZone, c_time.dwDaylight);
+        memcpy(dnload_info.bReserved, &c_time, sizeof(c_time));
 
         written_len = polySendControlInfo(transport,
                                           false,
@@ -460,13 +470,20 @@ int polySendImageFile(Transport *transport, const char *fileName,
     if (!fUpdate)
         return 0;
 
+    //Got Host's current time.
+    wup_get_calendar_time(&c_time);
+    printf("Update Time: %d-%d-%d %d:%d:%d GMT %d Daylight %d\n",
+        c_time.wYear, c_time.wMonth, c_time.wDay,
+        c_time.wHour, c_time.wMinute, c_time.wSecond,
+        c_time.dwTimeZone, c_time.dwDaylight);
+
     //Try to start the update
     written_len = polySendControlInfo(transport,
                                       false,
                                       PLCM_USB_REQUEST_SET_INFORMATION,
                                       PLCM_USB_REQ_WUP_START_UPDATE,
-                                      NULL,
-                                      0);
+                                      &c_time,
+                                      sizeof(c_time));
 
     if (written_len < 0) {
         fprintf(stderr, "Failed to issue UPDATE START request\n");
