@@ -33,7 +33,7 @@ int wup_get_calendar_time(struct wup_calendar_time *c_time)
     c_time->wMinute = local_tm.tm_min;
     c_time->wSecond = local_tm.tm_sec;
 
-    c_time->dwTimeZone = local_tm.tm_gmtoff / 60;
+    c_time->dwTimeZone = (int32_t)(local_tm.tm_gmtoff / 60);
     c_time->dwDaylight = local_tm.tm_isdst;
 #endif
     return 0;

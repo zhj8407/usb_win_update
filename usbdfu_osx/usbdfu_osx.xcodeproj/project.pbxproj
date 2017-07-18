@@ -13,6 +13,7 @@
 		9748C5D01E12DC6E00DC88D6 /* usb_osx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9748C5CB1E12DC6E00DC88D6 /* usb_osx.cpp */; };
 		9748C5D31E12DCAF00DC88D6 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9748C5D21E12DCAF00DC88D6 /* CoreFoundation.framework */; };
 		9748C5D51E12DCB900DC88D6 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9748C5D41E12DCB900DC88D6 /* IOKit.framework */; };
+		97EA94F41F1E0AC90003AB1F /* time_utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 97EA94F31F1E0AC90003AB1F /* time_utils.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -40,6 +41,7 @@
 		9748C5CC1E12DC6E00DC88D6 /* usb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = usb.h; path = ../usb_win_update/usb.h; sourceTree = "<group>"; };
 		9748C5D21E12DCAF00DC88D6 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		9748C5D41E12DCB900DC88D6 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		97EA94F31F1E0AC90003AB1F /* time_utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = time_utils.cpp; path = ../usb_win_update/time_utils.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +60,7 @@
 		9748C5A31E12CAFF00DC88D6 = {
 			isa = PBXGroup;
 			children = (
+				97EA94F31F1E0AC90003AB1F /* time_utils.cpp */,
 				97133DC01E1366F000C07015 /* transport.h */,
 				9748C5C51E12DC6E00DC88D6 /* main.cpp */,
 				9748C5C61E12DC6E00DC88D6 /* md5_utils.cpp */,
@@ -149,6 +152,7 @@
 				9748C5CF1E12DC6E00DC88D6 /* plcm_dfu.cpp in Sources */,
 				9748C5CE1E12DC6E00DC88D6 /* md5_utils.cpp in Sources */,
 				9748C5CD1E12DC6E00DC88D6 /* main.cpp in Sources */,
+				97EA94F41F1E0AC90003AB1F /* time_utils.cpp in Sources */,
 				9748C5D01E12DC6E00DC88D6 /* usb_osx.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
