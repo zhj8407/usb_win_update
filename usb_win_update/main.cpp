@@ -61,7 +61,7 @@ void progress_show(const char *fileName,
         strncpy(stored_FileName, fileName, sizeof(stored_FileName));
         printf("\nCount   : %d\n", ++count);
         printf("File Name: %s\n", fileName);
-        printf("File Size: %Id\n", total_bytes);
+        printf("File Size: %ld\n", (long int)total_bytes);
     }
 
     printf("\rProgress: [");

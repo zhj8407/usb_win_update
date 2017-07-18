@@ -11,7 +11,7 @@ all: dfu_tool
 %.o: $(SOURCE_SRC)/%.cpp
 	$(CPP) -c $(CFLAGS) $(SOURCE_SRC)/$< -o $@
 
-dfu_tool: main.o usb_linux.o md5_utils.o plcm_dfu.o
+dfu_tool: main.o usb_linux.o md5_utils.o time_utils.o plcm_dfu.o
 	$(CPP) -o $@ $^ $(LDFLAGS)
 
 clean:

@@ -23,16 +23,17 @@ struct wup_calendar_time {
 };
 #pragma pack ()
 #else
+#include <stdint.h>
 #include <time.h>
 struct wup_calendar_time {
-    UINT16 wYear;
-    UINT16 wMonth;
-    UINT16 wDay;
-    UINT16 wHour;
-    UINT16 wMinute;
-    UINT16 wSecond;
-    INT32 dwTimeZone;
-    INT32 dwDaylight;
+    uint16_t wYear;
+    uint16_t wMonth;
+    uint16_t wDay;
+    uint16_t wHour;
+    uint16_t wMinute;
+    uint16_t wSecond;
+    int32_t dwTimeZone;
+    int32_t dwDaylight;
 } __attribute__((packed));
 #endif
 

@@ -262,7 +262,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
         dnload_info.bForced = fForced ? 1 : 0;
         //Got Host's current time.
         wup_get_calendar_time(&c_time);
-        printf("Transfer Time: %d-%d-%d %d:%d:%d GMT %d Daylight %d\n",
+        printf("Transfer Time: %04d-%02d-%02d %02d:%02d:%02d GMT %d Daylight %d\n",
             c_time.wYear, c_time.wMonth, c_time.wDay,
             c_time.wHour, c_time.wMinute, c_time.wSecond,
             c_time.dwTimeZone, c_time.dwDaylight);
@@ -472,7 +472,7 @@ int polySendImageFile(Transport *transport, const char *fileName,
 
     //Got Host's current time.
     wup_get_calendar_time(&c_time);
-    printf("Update Time: %d-%d-%d %d:%d:%d GMT %d Daylight %d\n",
+    printf("Update Time: %04d-%02d-%02d %02d:%02d:%02d GMT %d Daylight %d\n",
         c_time.wYear, c_time.wMonth, c_time.wDay,
         c_time.wHour, c_time.wMinute, c_time.wSecond,
         c_time.dwTimeZone, c_time.dwDaylight);

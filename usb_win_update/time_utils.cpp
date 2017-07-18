@@ -22,7 +22,7 @@ int wup_get_calendar_time(struct wup_calendar_time *c_time)
     c_time->dwDaylight = time_zone.DaylightBias;
 #else
     time_t t = time(NULL);
-    struct tm local_tm = { 0 };
+    struct tm local_tm;
 
     localtime_r(&t, &local_tm);
 
