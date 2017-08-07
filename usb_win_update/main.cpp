@@ -20,6 +20,7 @@
 #include <Windows.h>
 #else
 #include <dirent.h>
+#include <unistd.h>
 #endif
 
 #define DEBUG_PRINT 0
@@ -81,6 +82,29 @@ void progress_show(const char *fileName,
 
     if (error)
         printf("  Error\n");
+}
+
+static bool is_directory(const char *path)
+{
+    bool directory = true;
+#if defined(_WIN32)
+    struct _finddata_t file_find;
+    intptr_t handle;
+
+    handle = _findfirst(path, &file_find);
+    if (handle == -1)
+        return directory;
+
+    directory = (file_find.attrib == _A_SUBDIR);
+#else
+    struct stat path_stat;
+    if (stat(path, &path_stat) != 0)
+        return directory;
+
+    directory = (S_ISDIR(path_stat.st_mode) == 1)
+#endif
+
+    return directory;
 }
 
 int traverse_directory(const char *dirName,
@@ -218,7 +242,7 @@ int main(int argc, char *argv[])
     std::unique_ptr<Transport, decltype(close_transport)*> transport(t, close_transport);
 
 #if 1
-    char const *base_dir = "F:\\images";
+    char const *base_dir = "D:\\vsg_image";
     //char const *base_dir = "/Users/jiezhang/patches";
     //char const *base_dir = "/Volumes/Untitled/image";
 
@@ -231,7 +255,7 @@ int main(int argc, char *argv[])
 
     if (argc < 2) {
         fprintf(stderr, "Invaild argument!\n");
-        fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY] [BufferSize(16)] [ForceFlag(1)]"
+        fprintf(stderr, "Usage: usb_win_update.exe [DIRECTORY|FILENAME] [BufferSize(16)] [ForceFlag(1)]"
                 " [UpdateFlag(0)] [SyncFlag(1)] [VersionNumber(1.3.0-110230)]\n");
         fprintf(stderr, "Use the default directory: %s\n", base_dir);
     } else {
@@ -271,16 +295,23 @@ int main(int argc, char *argv[])
 
     while (i++ < 1) {
         int total_file_count = 0;
+        int file_count = 0;
 
-        int file_count = traverse_directory(base_dir,
-                                            polySendImageFile,
-                                            transport.get(),
-                                            version,
-                                            fUpdate,
-                                            fSync,
-                                            fForced,
-                                            buffer_size,
-                                            &total_file_count);
+        if (is_directory(base_dir)) {
+            file_count = traverse_directory(base_dir,
+                polySendImageFile,
+                transport.get(),
+                version,
+                fUpdate,
+                fSync,
+                fForced,
+                buffer_size,
+                &total_file_count);
+        } else {
+            total_file_count = 1;
+            if (!polySendImageFile(transport.get(), base_dir, version, buffer_size, fUpdate, fSync, fForced, progress_show))
+                file_count = 1;
+        }
 
         printf("%d times test: total file count: %d, transferred count: %d\n",
                i, total_file_count, file_count);
