@@ -101,7 +101,7 @@ static bool is_directory(const char *path)
     if (stat(path, &path_stat) != 0)
         return directory;
 
-    directory = (S_ISDIR(path_stat.st_mode) == 1)
+    directory = (S_ISDIR(path_stat.st_mode) == 1);
 #endif
 
     return directory;
