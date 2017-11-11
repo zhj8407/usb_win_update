@@ -251,6 +251,8 @@ int main(int argc, char *argv[])
     bool fUpdate = false;
     bool fForced = true;
 
+    char devinfo[MAX_DEV_INFO_LENGTH];
+
     char const *version = "1.3.0-110230";
 
     if (argc < 2) {
@@ -260,6 +262,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Use the default directory: %s\n", base_dir);
     } else {
         base_dir = argv[1];
+    }
+
+    if (strcmp(argv[1], "-d") == 0) {
+        if (!polyGetDeviceInfo(transport.get(), devinfo))
+            printf("Got Device Info:\n%s\n", devinfo);
+        return 0;
     }
 
     if (argc >= 3) {

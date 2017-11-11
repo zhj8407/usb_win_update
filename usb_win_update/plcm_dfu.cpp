@@ -36,6 +36,7 @@ struct setup_packet {
 #define PLCM_USB_REQ_WUP_SYNC                0x0007
 #define PLCM_USB_REQ_WUP_INT_CHECK           0x0008
 #define PLCM_USB_REQ_WUP_START_UPDATE		 0x0009
+#define PLCM_USB_REQ_WUP_GET_SYSINFO		 0x000A
 
 #if defined(_WIN32)
 #pragma pack (1)
@@ -55,6 +56,12 @@ struct wup_dnload_info {
     UINT8 bForced;
     UINT8 bReserved[23];
 };
+
+struct wup_sys_info {
+    char sFwVersion[32];
+    char sIpAddress[16];
+    UINT8 bReserved[16];
+};
 #pragma pack ()
 #else
 struct wup_status {
@@ -73,6 +80,13 @@ struct wup_dnload_info {
     uint8_t bForced;
     uint8_t bReserved[23];
 } __attribute__((packed));
+
+struct wup_sys_info {
+    char sFwVersion[32];
+    char sIpAddress[16];
+    uint8_t bReserved[16];
+} __attribute__((packed));
+
 #endif
 
 #define WUP_STATUS_OK                   0x00
@@ -512,3 +526,36 @@ int polySendImageFile(Transport *transport, const char *fileName,
 
     return 0;
 }
+
+int polyGetDeviceInfo(Transport *transport, char *devinfo)
+{
+    ssize_t ret = 0;
+    struct wup_sys_info sys_info;
+
+    memset(&sys_info, 0x00, sizeof(struct wup_sys_info));
+
+    ret = polySendControlInfo(transport,
+                              true,
+                              PLCM_USB_REQUEST_GET_INFORMATION,
+                              PLCM_USB_REQ_WUP_GET_SYSINFO,
+                              &sys_info,
+                              sizeof(struct wup_sys_info));
+
+    if (ret < 0) {
+        return ret;
+    } else {
+#if DEBUG_PRINT
+        printf("polyGetDeviceInfo - Got FWVersion: %s, IpAddress: %s\n",
+               sys_info.sFwVersion,
+               sys_info.sIpAddress);
+#endif
+    }
+
+    snprintf(devinfo, MAX_DEV_INFO_LENGTH,
+            "FW Version: %s\nIP Address: %s",
+            sys_info.sFwVersion,
+            sys_info.sIpAddress);
+
+    return 0;
+}
+
