@@ -542,7 +542,7 @@ int polyGetDeviceInfo(Transport *transport, char *devinfo)
                               sizeof(struct wup_sys_info));
 
     if (ret < 0) {
-        return ret;
+        return (int)ret;
     } else {
 #if DEBUG_PRINT
         printf("polyGetDeviceInfo - Got FWVersion: %s, IpAddress: %s\n",

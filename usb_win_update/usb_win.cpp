@@ -331,8 +331,6 @@ void usb_kick(usb_handle* handle)
 
 int WindowsUsbTransport::Close()
 {
-    fprintf(stderr, "usb_close\n");
-
     if (nullptr != handle_) {
         // Cleanup handle
         usb_cleanup_handle(handle_.get());
@@ -374,7 +372,6 @@ int recognized_device(usb_handle* handle, ifc_match_func callback)
         handle->zero_mask = endpoint_info.max_packet_size - 1;
         info.has_bulk_out = 1;
         info.has_bulk_in = 0;
-        fprintf(stderr, "handle->zero_mask is %d\n", handle->zero_mask);
     } else {
         fprintf(stderr, "Failed to get the endpoint information\n");
         return 0;
