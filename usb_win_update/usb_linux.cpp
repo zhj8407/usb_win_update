@@ -363,7 +363,7 @@ static std::unique_ptr<usb_handle> find_usb_device(const char* base, ifc_match_f
 {
     std::unique_ptr<usb_handle> usb;
     char devname[64];
-    char desc[4096];
+    char desc[8192];
     int n, in, out, ifc;
     unsigned zero_mask;
 
